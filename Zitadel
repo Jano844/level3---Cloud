@@ -1,0 +1,103 @@
+export TERM=xterm
+
+Zitadel Cridentiols:
+ClientId: 328262280225566050
+ClientSecret: tWeH5E5IZXXEXfeTnPluLRvx2X6RwfabPmU3gcjP7uFqIMlBKsr0CIbxt8eq3koR
+
+
+
+
+
+
+in /etc/keystone/keystone.conf
+
+add or make these Changes:
+
+issuer URl = https://openstack-demo-fgevuc.us1.zitadel.cloud/oidc/v1
+
+
+[federation]
+enabled = true
+
+[oidc]
+issuer = http://<zitadel-domain>   # Usually Zitadel’s issuer URL is HTTPS, but for dev mode, confirm if HTTP is allowed
+client_id = <your-client-id>
+client_secret = <your-client-secret>
+redirect_uri = http://91.99.176.18/v3/OS-FEDERATION/oidc/callback
+scopes = openid email profile
+
+####
+sudo systemctl restart apache2
+###
+
+Create the Identity Provider (IdP) in Keystone
+openstack identity provider create --remote-id https://<zitadel-issuer> zitadel-idp
+Output: 
++-------------------+---------------------------------------------------------+
+| Field             | Value                                                   |
++-------------------+---------------------------------------------------------+
+| authorization_ttl | None                                                    |
+| description       | None                                                    |
+| domain_id         | aa89627570c44a7ba4c73638aa747f45                        |
+| enabled           | True                                                    |
+| id                | zitadel-idp                                             |
+| remote_ids        | https://openstack-demo-fgevuc.us1.zitadel.cloud/oidc/v1 |
++-------------------+---------------------------------------------------------+
+
+#####
+
+touch /etc/keystone/zitadel-mapping.json
+JSON:
+
+{
+  "rules": [
+    {
+      "remote": [
+        {
+          "type": "email"
+        }
+      ],
+      "local": [
+        {
+          "user": {
+            "name": "{0}",
+            "domain": {
+              "name": "Default"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+
+######
+
+openstack mapping create --rules /etc/keystone/zitadel-mapping.json zitadel-mapping
+
+######
+
+sudo systemctl restart apache2
+
+#####
+
+
+Edit the /opt/stack/horizon/openstack_dashboard/local/local_settings.py
+
+insert:
+
+WEBSSO_ENABLED = True
+
+WEBSSO_INITIAL_CHOICE = "oidc"
+
+WEBSSO_CHOICES = (
+    ("credentials", "Keystone Credentials"),
+    ("oidc", "Login with Zitadel"),
+)
+
+WEBSSO_IDP_MAPPING = {
+    "zitadel": ("zitadel", "oidc"),
+}
+
+
+
