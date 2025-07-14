@@ -1,0 +1,12 @@
+clouds:
+  mycloud:
+    auth:
+      auth_url: http://ip_address/identity/v3
+      username: <  >
+      password: <  >
+      project_name: <  >
+      user_domain_name: Default
+      project_domain_name: Default
+    region_name: RegionOne
+    interface: public
+    identity_api_version: 3
