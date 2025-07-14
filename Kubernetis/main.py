@@ -122,28 +122,32 @@ def ssh_pair(conn):
 
 
 
-def assign_floating_ip(conn, server, external_net_name='public'):
-    external_network = conn.network.find_network(external_net_name)
-    if not external_network:
-        print(f"Externes Netzwerk '{external_net_name}' nicht gefunden!")
-        return None
-    if not external_network.is_router_external:
-        print(f"Netzwerk '{external_net_name}' ist kein externes Netzwerk!")
-        return None
+def assign_floating_ip_correctly(conn, vm_name):
+    # 1. Get external network (floating IP pool)
+    ext_net = next(net for net in conn.network.networks() if net.is_router_external)
+    
+    # 2. Find the server (VM)
+    server = conn.compute.find_server(vm_name)
+    if not server:
+        print(f"[ERROR] Server '{vm_name}' not found.")
+        return
 
-    floating_ip = conn.network.create_ip(floating_network_id=external_network.id)
-    print(f"Floating IP {floating_ip.floating_ip_address} erstellt.")
-
+    # 3. Find the correct internal port (the one with the internal IP)
     ports = list(conn.network.ports(device_id=server.id))
     if not ports:
-        print("Kein Netzwerkport für Server gefunden!")
-        return None
-    port = ports[0]
+        print(f"[ERROR] No ports found for server {vm_name}")
+        return
 
-    conn.network.update_ip(floating_ip, port_id=port.id)
-    print(f"Floating IP {floating_ip.floating_ip_address} an Server gebunden.")
+    internal_port = ports[0]  # Usually there's only one port
+    print(f"[INFO] Using port: {internal_port.id}, fixed IP: {internal_port.fixed_ips[0]['ip_address']}")
 
-    return floating_ip.floating_ip_address
+    # 4. Create floating IP and bind it to that port
+    fip = conn.network.create_ip(
+        floating_network_id=ext_net.id,
+        port_id=internal_port.id,  # <- this is the critical part
+    )
+
+    print(f"[SUCCESS] Floating IP {fip.floating_ip_address} assigned to {vm_name}")
 
 
 
@@ -202,7 +206,7 @@ def main():
     conn.network.add_interface_to_router(router, subnet_id=subnet.id)
 
     server = launch_instance(conn, key, sec_group.name, net_name)
-    floating_ip = assign_floating_ip(conn, server)
+    floating_ip = assign_floating_ip_correctly(conn, server.name)
     print(floating_ip)
 
 
