@@ -25,4 +25,9 @@
                     +-------------+
 
 
-
+-- Python env to Run the Scripts
+docker run -it --rm \
+  -v ~/Desktop/k8:/app \
+  -w /app \
+  python:3.12-slim \
+  bash
