@@ -9,7 +9,7 @@ from key_copy import copy_key_to_stack
 
 
 def generate_cidr():
-    third_octet = random.randint(100, 200)  # oder anderer Bereich
+    third_octet = random.randint(100, 200)
     return f"192.168.{third_octet}.0/24"
 
 def network_and_subnet(conn):
@@ -81,7 +81,6 @@ def security_group(conn):
             ethertype='IPv4'
         )
 
-        # Add ICMP (ping) rule
         conn.network.create_security_group_rule(
             security_group_id=secgroup.id,
             direction='ingress',
@@ -123,28 +122,24 @@ def ssh_pair(conn):
 
 
 def assign_floating_ip_correctly(conn, vm_name):
-    # 1. Get external network (floating IP pool)
     ext_net = next(net for net in conn.network.networks() if net.is_router_external)
     
-    # 2. Find the server (VM)
     server = conn.compute.find_server(vm_name)
     if not server:
         print(f"[ERROR] Server '{vm_name}' not found.")
         return
 
-    # 3. Find the correct internal port (the one with the internal IP)
     ports = list(conn.network.ports(device_id=server.id))
     if not ports:
         print(f"[ERROR] No ports found for server {vm_name}")
         return
 
-    internal_port = ports[0]  # Usually there's only one port
+    internal_port = ports[0]
     print(f"[INFO] Using port: {internal_port.id}, fixed IP: {internal_port.fixed_ips[0]['ip_address']}")
 
-    # 4. Create floating IP and bind it to that port
     fip = conn.network.create_ip(
         floating_network_id=ext_net.id,
-        port_id=internal_port.id,  # <- this is the critical part
+        port_id=internal_port.id,
     )
 
     print(f"[SUCCESS] Floating IP {fip.floating_ip_address} assigned to {vm_name}")
@@ -155,12 +150,6 @@ def assign_floating_ip_correctly(conn, vm_name):
 
 
 def launch_instance(conn, key, security_group_name, net_name):
-
-    print("\n")
-    print(f"key_name: {key.name} ({type(key.name)})")
-    print(f"sec_group_name: {security_group_name} ({type(security_group_name)})")
-    print(f"net_name: {net_name} ({type(net_name)})")
-    print("\n")
 
     name = input("Enter instance name: ").strip()
 
@@ -185,7 +174,6 @@ def launch_instance(conn, key, security_group_name, net_name):
         security_groups=[{"name": security_group_name}]
     )
 
-    # Wait for the VM to be ACTIVE
     server = conn.compute.wait_for_server(server)
     print(f"✅ VM '{name}' is ready! IPs: {server.addresses}")
     return server
@@ -193,6 +181,7 @@ def launch_instance(conn, key, security_group_name, net_name):
 
 
 def main():
+    servers = []
     conn = openstack.connect(cloud='mycloud')
 
     net_name, name_sub = network_and_subnet(conn)
@@ -205,9 +194,11 @@ def main():
     subnet = conn.network.find_subnet(name_sub)
     conn.network.add_interface_to_router(router, subnet_id=subnet.id)
 
-    server = launch_instance(conn, key, sec_group.name, net_name)
-    floating_ip = assign_floating_ip_correctly(conn, server.name)
-    print(floating_ip)
+    for _ in range(3):
+        server = launch_instance(conn, key, sec_group.name, net_name)
+        floating_ip = assign_floating_ip_correctly(conn, server.name)
+        servers.append(server)
+        print(floating_ip)
 
 
     copy_key_to_stack()
