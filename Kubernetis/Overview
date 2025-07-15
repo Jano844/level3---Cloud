@@ -32,6 +32,12 @@ docker run -it --rm \
   python:3.12-slim \
   bash
 
+-- clouds.yaml has to be at ~/.config/openstack/
+          mkdir -p /root/.config/openstack
+          cp /clouds.yaml /root/.config/openstack/clouds.yaml
+
 -- Change Server Password from stack user
           su - stack
           passwd
+
+-- For now you have to have a Router and change the Id in the main()
