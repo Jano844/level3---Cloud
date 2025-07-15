@@ -1,0 +1,18 @@
+
+Master:
+curl -sfL https://get.k3s.io | sh -
+
+get Token:
+sudo cat /var/lib/rancher/k3s/server/node-token
+
+
+Workers:
+Change <Token> With the real Token
+curl -sfL https://get.k3s.io | K3S_URL=https://172.24.4.101:6443 K3S_TOKEN=<Token> sh -
+
+
+Master:
+sudo kubectl get nodes
+
+to Check if it all worked
+
