@@ -31,3 +31,7 @@ docker run -it --rm \
   -w /app \
   python:3.12-slim \
   bash
+
+-- Change Server Password from stack user
+          su - stack
+          passwd
