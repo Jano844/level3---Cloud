@@ -10,6 +10,18 @@ Workers:
 Change <Token> With the real Token
 curl -sfL https://get.k3s.io | K3S_URL=https://172.24.4.101:6443 K3S_TOKEN=<Token> sh -
 
+K10f733dd3e12d85b7ba592d4d22a7173bb7cdc25f385eb5182650845e05c3c75b0::server:6ccbe5c5c6d4caf4fef31c6585a8d0f4
+
+curl -sfL https://get.k3s.io | \
+K3S_URL=https://192.168.151.115:6443 \
+K3S_TOKEN="K10f733dd3e12d85b7ba592d4d22a7173bb7cdc25f385eb5182650845e05c3c75b0::server:6ccbe5c5c6d4caf4fef31c6585a8d0f4" \
+sh -
+
+TEST: K3S_URL=https://192.168.151.115:6443 \
+
+Check if it worked
+sudo systemctl status k3s-agent
+sudo journalctl -u k3s-agent -f
 
 Master:
 sudo kubectl get nodes
