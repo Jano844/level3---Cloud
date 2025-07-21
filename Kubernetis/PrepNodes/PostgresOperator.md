@@ -10,3 +10,9 @@
 ```bash
   kubectl apply -k kustomize/postgres
 ```
+To get your Secrets 
+```bash
+  kubectl get secret hippo-pguser-hippo -n postgres-operator -o jsonpath="{.data}"
+```
+---> Then with .data.user  | base64 -d
+    gives decoded Data
