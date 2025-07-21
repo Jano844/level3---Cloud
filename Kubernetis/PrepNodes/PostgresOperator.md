@@ -16,3 +16,15 @@ To get your Secrets
 ```
 ---> Then with .data.user  | base64 -d
     gives decoded Data
+
+Show CRD
+Edit CRD
+
+```bash
+  kubectl get crd postgresclusters.postgres-operator.crunchydata.com -o yaml
+  kubectl edit crd postgresclusters.postgres-operator.crunchydata.com
+```
+
+CRD --> Defines how the CR muss look like
+CR in this case in "/postgres-operator-examples/kustomize/postgres/postgres.yaml"
+--> Defines how the Pod looks like (Change num of Instances or Username Password)
