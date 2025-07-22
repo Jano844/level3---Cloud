@@ -82,8 +82,9 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 	fmt.Println("Generated YAML:")
 	fmt.Println(yamlBuffer.String())
 
-  // Somewhere here is the Error cat parse Yaml to Json but YAML Correct
-  
+
+	
+  	// Somewhere here is the Error cant parse Yaml to Json but YAML Correct
 	var jsonData map[string]interface{}
 	err = json.Unmarshal(yamlBuffer.Bytes(), &jsonData)
 	if err != nil {
@@ -91,6 +92,8 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 		return
 	}
 
+
+	
 	namespace := "postgres-operator"
 	restClient := clientset.RESTClient()
 
