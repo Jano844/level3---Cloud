@@ -12,10 +12,23 @@
 ```
 To get your Secrets 
 ```bash
-  kubectl get secret hippo-pguser-hippo -n postgres-operator -o jsonpath="{.data}"
+  kubectl get secrets -n postgres-operator
+  kubectl get secret <pguser> -n postgres-operator -o jsonpath="{.data}"
 ```
----> Then with .data.user  | base64 -d
-    gives decoded Data
+Get .data.password .data.user .data.host .data.dbname
+all with | base64 -d && echo ""
+Example:
+```bash
+  get secret my-postgres-cluster-pguser-myuser -n postgres-operator -o jsonpath="{.data.password}" | base64 -d && echo ""
+```
+
+```bash
+  kubectl exec -it -n <pod name (4/4)> -- /bin/bash
+  psql -h <host> -U <user> -d <database>
+```
+--> Now connected to Database
+
+
 
 Show CRD
 Edit CRD
@@ -28,3 +41,4 @@ Edit CRD
 CRD --> Defines how the CR muss look like
 CR in this case in "/postgres-operator-examples/kustomize/postgres/postgres.yaml"
 --> Defines how the Pod looks like (Change num of Instances or Username Password)
+
