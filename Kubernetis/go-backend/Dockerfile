@@ -1,10 +1,8 @@
-
 # Stage 1: Build the Go binary
 FROM golang:1.24 AS builder
 
 WORKDIR /app
-COPY main.go .
-# ALl used Files
+COPY . .
 RUN go mod init myapp
 RUN go mod tidy
 RUN go mod download
