@@ -1,4 +1,3 @@
-
 package createDB
 
 import (
@@ -10,6 +9,7 @@ import (
 	"text/template"
 
 	"k8s.io/client-go/kubernetes"
+	"gopkg.in/yaml.v3"
 )
 
 // Template für die PostgreSQL-Cluster-YAML
@@ -82,18 +82,18 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 	fmt.Println("Generated YAML:")
 	fmt.Println(yamlBuffer.String())
 
-
-	
-  	// Somewhere here is the Error cant parse Yaml to Json but YAML Correct
-	var jsonData map[string]interface{}
-	err = json.Unmarshal(yamlBuffer.Bytes(), &jsonData)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to convert YAML to JSON: %v", err), http.StatusInternalServerError)
+	var yamlObj map[string]interface{}
+	if err := yaml.Unmarshal(yamlBuffer.Bytes(), &yamlObj); err != nil {
+		fmt.Printf("Fehler beim Parsen von YAML: %v\n", err)
 		return
 	}
 
+	jsonBytes, err := json.Marshal(yamlObj)
+	if err != nil {
+		fmt.Printf("Fehler beim Konvertieren zu JSON: %v\n", err)
+		return
+	}
 
-	
 	namespace := "postgres-operator"
 	restClient := clientset.RESTClient()
 
@@ -103,7 +103,7 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 		AbsPath("/apis/postgres-operator.crunchydata.com/v1beta1").
 		Namespace(namespace).
 		Resource("postgresclusters").
-		Body(jsonData).
+		Body(jsonBytes).
 		Do(context.TODO())
 
 	// Error
