@@ -1,5 +1,3 @@
-# Inside the Cluster
-
 # Deployment
 apiVersion: apps/v1
 kind: Deployment
@@ -18,7 +16,7 @@ spec:
       serviceAccountName: my-service-account
       containers:
       - name: go-backend
-        image: jano844/level3-test:latest
+        image: jano844/level3-test:v1.0.4
         ports:
         - containerPort: 8080
         imagePullPolicy: IfNotPresent
@@ -82,3 +80,32 @@ roleRef:
   kind: Role
   name: pod-reader
   apiGroup: rbac.authorization.k8s.io
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: postgres-cluster-role
+  namespace: postgres-operator
+rules:
+  - apiGroups: ["postgres-operator.crunchydata.com"]
+    resources: ["postgresclusters"]
+    verbs: ["create", "get", "list", "watch", "delete", "update", "patch"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: postgres-cluster-rolebinding
+  namespace: postgres-operator
+subjects:
+  - kind: ServiceAccount
+    name: my-service-account
+    namespace: default
+roleRef:
+  kind: Role
+  name: postgres-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+
