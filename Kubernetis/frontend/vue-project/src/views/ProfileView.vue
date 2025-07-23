@@ -250,7 +250,7 @@ const debugData = ref({
   config: null
 })
 
-onMounted(() => {
+onMounted(async () => {
   // Check if user is logged in
   const accessToken = localStorage.getItem('access_token')
   const idToken = localStorage.getItem('id_token')
@@ -264,14 +264,31 @@ onMounted(() => {
   // Try to get user profile from stored token
   try {
     const payload = parseJWT(idToken)
+    
+    // Try to fetch additional user info from userinfo endpoint
+    let additionalUserInfo = null
+    try {
+      additionalUserInfo = await fetchUserInfo(accessToken)
+      console.log('Additional user info from /userinfo:', additionalUserInfo)
+    } catch (error) {
+      console.warn('Could not fetch additional user info:', error)
+    }
+    
+    // Merge information from ID token and userinfo endpoint
     userProfile.value = {
-      name: payload.name || payload.preferred_username || 'User',
-      email: payload.email || 'No email provided',
-      picture: payload.picture || null,
+      name: additionalUserInfo?.name || payload.name || payload.preferred_username || payload.given_name || 'User',
+      email: additionalUserInfo?.email || payload.email || 'No email provided',
+      picture: additionalUserInfo?.picture || payload.picture || null,
+      username: additionalUserInfo?.preferred_username || payload.preferred_username || payload.sub,
+      givenName: additionalUserInfo?.given_name || payload.given_name || '',
+      familyName: additionalUserInfo?.family_name || payload.family_name || '',
       sub: payload.sub,
       iss: payload.iss,
-      exp: payload.exp
+      exp: payload.exp,
+      fullPayload: payload // For debugging
     }
+    
+    console.log('Final user profile in ProfileView:', userProfile.value)
     
     // Check if token is expired
     if (payload.exp && payload.exp * 1000 < Date.now()) {
@@ -283,6 +300,23 @@ onMounted(() => {
     logout()
   }
 })
+
+// Fetch additional user information from Zitadel userinfo endpoint
+const fetchUserInfo = async (accessToken) => {
+  const zitadelAuthority = 'https://openstack-demo-fgevuc.us1.zitadel.cloud'
+  const response = await fetch(`${zitadelAuthority}/oidc/v1/userinfo`, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  })
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch user info: ${response.status}`)
+  }
+  
+  return await response.json()
+}
 
 // Parse JWT token
 const parseJWT = (token) => {
@@ -338,21 +372,21 @@ const debugZitadelData = async () => {
     }
   }
   
-  // Zitadel configuration (from your login setup)
+  // Zitadel configuration (should match LoginView.vue)
   const config = {
-    issuer: 'https://zitadel-vvxe2s.zitadel.cloud',
-    clientId: '284946386936062465@demo',
+    authority: 'https://openstack-demo-fgevuc.us1.zitadel.cloud',
+    authorizationEndpoint: 'https://openstack-demo-fgevuc.us1.zitadel.cloud/oauth/v2/authorize',
+    clientId: '330117514837175600',
     redirectUri: `${window.location.origin}/auth/callback`,
-    scopes: ['openid', 'profile', 'email'],
-    responseType: 'code',
-    codeChallenge: 'S256'
+    scope: 'openid profile email',
+    responseType: 'code'
   }
   
   // Try to fetch user info from userinfo endpoint
   let userInfo = null
   if (accessToken) {
     try {
-      const response = await fetch(`${config.issuer}/oidc/v1/userinfo`, {
+      const response = await fetch(`${config.authority}/oidc/v1/userinfo`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }

@@ -77,7 +77,7 @@ const zitadelConfig = {
   authority: 'https://openstack-demo-fgevuc.us1.zitadel.cloud',
   authorizationEndpoint: 'https://openstack-demo-fgevuc.us1.zitadel.cloud/oauth/v2/authorize',
   clientId: '330117514837175600',
-  redirectUri: `http://localhost:3000/auth/callback`,
+  redirectUri: `${window.location.origin}/auth/callback`,
   scope: 'openid profile email',
   responseType: 'code',
 }
