@@ -54,8 +54,11 @@ export default {
         const storedState = sessionStorage.getItem('oauth_state')
         const codeVerifier = sessionStorage.getItem('code_verifier')
 
+        console.log('Callback received - Code:', !!code, 'State:', state, 'Stored State:', storedState)
+
         // Validate state parameter
         if (!state || state !== storedState) {
+          console.error('State mismatch:', { received: state, stored: storedState })
           throw new Error('Invalid state parameter. Possible CSRF attack.')
         }
 
@@ -84,12 +87,17 @@ export default {
           sessionStorage.removeItem('oauth_state')
           sessionStorage.removeItem('code_verifier')
 
+          // Update authentication status in App.vue
+          if (window.checkAuthStatus) {
+            window.checkAuthStatus()
+          }
+
           // Successful authentication
           isProcessing.value = false
           
-          // Redirect after a short delay
+          // Redirect to profile page after a short delay
           setTimeout(() => {
-            router.push('/')
+            router.push('/profile')
           }, 1500)
         } else {
           throw new Error('No access token received from Zitadel.')
@@ -107,7 +115,7 @@ export default {
         grant_type: 'authorization_code',
         client_id: zitadelConfig.clientId,
         code: code,
-        redirect_uri: `${window.location.origin}/auth/callback`,
+        redirect_uri: `http://localhost:3000/auth/callback`,
         code_verifier: codeVerifier
       }
 
