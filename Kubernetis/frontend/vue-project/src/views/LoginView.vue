@@ -49,11 +49,27 @@
               </div>
               <div class="profile-info">
                 <h3>{{ userProfile.name }}</h3>
-                <p>{{ userProfile.email }}</p>
+                <p class="email">{{ userProfile.email }}</p>
                 <div class="profile-details">
+                  <div class="detail-item" v-if="userProfile.username">
+                    <span class="label">Username:</span>
+                    <span class="value">{{ userProfile.username }}</span>
+                  </div>
+                  <div class="detail-item" v-if="userProfile.givenName">
+                    <span class="label">First Name:</span>
+                    <span class="value">{{ userProfile.givenName }}</span>
+                  </div>
+                  <div class="detail-item" v-if="userProfile.familyName">
+                    <span class="label">Last Name:</span>
+                    <span class="value">{{ userProfile.familyName }}</span>
+                  </div>
                   <div class="detail-item">
                     <span class="label">User ID:</span>
                     <span class="value">{{ userProfile.sub?.substring(0, 20) }}...</span>
+                  </div>
+                  <div class="detail-item" v-if="userProfile.iss">
+                    <span class="label">Issuer:</span>
+                    <span class="value">{{ userProfile.iss.replace('https://', '').substring(0, 30) }}...</span>
                   </div>
                 </div>
               </div>
@@ -67,6 +83,12 @@
                 </svg>
                 Go to Home
               </button>
+              <button class="btn-debug" @click="printDebugInfo">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/>
+                </svg>
+                Show Debug Info
+              </button>
               <button class="btn-logout" @click="logout">
                 <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                   <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
@@ -75,6 +97,12 @@
                 Logout
               </button>
             </div>
+
+            <!-- Debug section - Remove this after debugging -->
+            <details class="debug-section">
+              <summary>Debug Information (Click to expand)</summary>
+              <pre class="debug-content">{{ JSON.stringify(userProfile.fullPayload, null, 2) }}</pre>
+            </details>
           </div>
           
           <!-- Security info - Show only when not logged in -->
@@ -136,18 +164,40 @@ export default {
       const accessToken = localStorage.getItem('access_token')
       const idToken = localStorage.getItem('id_token')
       
+      console.log('=== AUTH STATUS DEBUG ===')
+      console.log('Access token exists:', !!accessToken)
+      console.log('ID token exists:', !!idToken)
+      
       if (accessToken && idToken) {
         try {
           // Decode the ID token to get user information
           const payload = parseJWT(idToken)
+          console.log('Parsed ID token payload:', payload)
+          
+          // Try to fetch additional user info from userinfo endpoint
+          let additionalUserInfo = null
+          try {
+            additionalUserInfo = await fetchUserInfo(accessToken)
+            console.log('Additional user info from /userinfo:', additionalUserInfo)
+          } catch (error) {
+            console.warn('Could not fetch additional user info:', error)
+          }
+          
+          // Merge information from ID token and userinfo endpoint
           userProfile.value = {
-            name: payload.name || payload.preferred_username || 'User',
-            email: payload.email || 'No email provided',
-            picture: payload.picture || null,
+            name: additionalUserInfo?.name || payload.name || payload.preferred_username || payload.given_name || 'User',
+            email: additionalUserInfo?.email || payload.email || 'No email provided',
+            picture: additionalUserInfo?.picture || payload.picture || null,
+            username: additionalUserInfo?.preferred_username || payload.preferred_username || payload.sub,
+            givenName: additionalUserInfo?.given_name || payload.given_name || '',
+            familyName: additionalUserInfo?.family_name || payload.family_name || '',
             sub: payload.sub,
             iss: payload.iss,
-            exp: payload.exp
+            exp: payload.exp,
+            fullPayload: payload // For debugging
           }
+          
+          console.log('Final user profile:', userProfile.value)
           
           // Check if token is expired
           if (payload.exp && payload.exp * 1000 < Date.now()) {
@@ -159,6 +209,23 @@ export default {
           logout()
         }
       }
+      console.log('========================')
+    }
+
+    // Fetch additional user information from Zitadel userinfo endpoint
+    const fetchUserInfo = async (accessToken) => {
+      const response = await fetch(`${zitadelConfig.authority}/oidc/v1/userinfo`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch user info: ${response.status}`)
+      }
+      
+      return await response.json()
     }
 
     // Parse JWT token
@@ -194,6 +261,64 @@ export default {
     // Navigate to home
     const goToHome = () => {
       router.push('/')
+    }
+
+    // Print debug information to console
+    const printDebugInfo = () => {
+      const accessToken = localStorage.getItem('access_token')
+      const idToken = localStorage.getItem('id_token')
+      const refreshToken = localStorage.getItem('refresh_token')
+      
+      console.log('=== COMPLETE DEBUG INFORMATION ===')
+      console.log('Current timestamp:', new Date().toISOString())
+      console.log('Current URL:', window.location.href)
+      console.log('')
+      
+      console.log('--- STORED TOKENS ---')
+      console.log('Access Token (first 50 chars):', accessToken ? accessToken.substring(0, 50) + '...' : 'None')
+      console.log('ID Token (first 50 chars):', idToken ? idToken.substring(0, 50) + '...' : 'None')
+      console.log('Refresh Token (first 50 chars):', refreshToken ? refreshToken.substring(0, 50) + '...' : 'None')
+      console.log('')
+      
+      console.log('--- ZITADEL CONFIGURATION ---')
+      console.log('Authority:', zitadelConfig.authority)
+      console.log('Client ID:', zitadelConfig.clientId)
+      console.log('Redirect URI:', zitadelConfig.redirectUri)
+      console.log('Scopes:', zitadelConfig.scope)
+      console.log('')
+      
+      console.log('--- USER PROFILE DATA ---')
+      console.log('Is Logged In:', isLoggedIn.value)
+      console.log('User Profile Object:', userProfile.value)
+      console.log('')
+      
+      if (userProfile.value && userProfile.value.fullPayload) {
+        console.log('--- ID TOKEN PAYLOAD (DECODED) ---')
+        console.log('Full Payload:', userProfile.value.fullPayload)
+        console.log('Subject (sub):', userProfile.value.fullPayload.sub)
+        console.log('Issuer (iss):', userProfile.value.fullPayload.iss)
+        console.log('Audience (aud):', userProfile.value.fullPayload.aud)
+        console.log('Expiration (exp):', userProfile.value.fullPayload.exp, '(', new Date(userProfile.value.fullPayload.exp * 1000).toISOString(), ')')
+        console.log('Issued At (iat):', userProfile.value.fullPayload.iat, '(', new Date(userProfile.value.fullPayload.iat * 1000).toISOString(), ')')
+        console.log('')
+      }
+      
+      console.log('--- SESSION STORAGE ---')
+      console.log('OAuth State:', sessionStorage.getItem('oauth_state'))
+      console.log('Code Verifier:', sessionStorage.getItem('code_verifier') ? 'Present' : 'None')
+      console.log('')
+      
+      console.log('--- ENVIRONMENT INFO ---')
+      console.log('User Agent:', navigator.userAgent)
+      console.log('Current Origin:', window.location.origin)
+      console.log('Current Protocol:', window.location.protocol)
+      console.log('Current Host:', window.location.host)
+      console.log('')
+      
+      console.log('================================')
+      
+      // Also show an alert to let the user know the info was printed
+      alert('Debug information has been printed to the browser console. Open Developer Tools (F12) to view it.')
     }
 
     const redirectToZitadel = async () => {
@@ -272,7 +397,8 @@ export default {
       userProfile,
       redirectToZitadel,
       logout,
-      goToHome
+      goToHome,
+      printDebugInfo
     }
   }
 }
@@ -408,10 +534,35 @@ export default {
   font-size: 1.5rem;
 }
 
-.profile-info p {
-  color: #7f8c8d;
+.profile-info .email {
+  color: #3498db;
   margin-bottom: 1rem;
   font-size: 1rem;
+  font-weight: 500;
+}
+
+.debug-section {
+  margin-top: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.debug-section summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: #6c757d;
+  margin-bottom: 0.5rem;
+}
+
+.debug-content {
+  background: #2c3e50;
+  color: #ecf0f1;
+  padding: 1rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  overflow-x: auto;
+  margin-top: 0.5rem;
 }
 
 .profile-details {
@@ -451,7 +602,7 @@ export default {
   flex-wrap: wrap;
 }
 
-.btn-secondary, .btn-logout {
+.btn-secondary, .btn-debug, .btn-logout {
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 8px;
@@ -472,6 +623,16 @@ export default {
 
 .btn-secondary:hover {
   background: #5a6268;
+  transform: translateY(-1px);
+}
+
+.btn-debug {
+  background: #17a2b8;
+  color: white;
+}
+
+.btn-debug:hover {
+  background: #138496;
   transform: translateY(-1px);
 }
 
