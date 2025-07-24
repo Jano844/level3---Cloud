@@ -1,5 +1,9 @@
 # Deployment
-apiVersion: apps/v1
+api      containers:
+      - name: go-backend
+        image: jano844/level3-test:v1.1.0
+        ports:
+        - containerPort: 8080on: apps/v1
 kind: Deployment
 metadata:
   name: go-backend-deployment
@@ -16,7 +20,7 @@ spec:
       serviceAccountName: my-service-account
       containers:
       - name: go-backend
-        image: jano844/level3-test:v1.0.4
+        image: jano844/level3-test:v1.0.9
         ports:
         - containerPort: 8080
         imagePullPolicy: IfNotPresent
@@ -56,10 +60,9 @@ metadata:
 
 
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
-  name: pod-reader
-  namespace: default
+  name: pod-reader-cluster
 rules:
   - apiGroups: [""]
     resources: ["pods"]
@@ -68,17 +71,16 @@ rules:
 ---
 
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
-  name: pod-reader-binding
-  namespace: default
+  name: pod-reader-cluster-binding
 subjects:
   - kind: ServiceAccount
     name: my-service-account
     namespace: default
 roleRef:
-  kind: Role
-  name: pod-reader
+  kind: ClusterRole
+  name: pod-reader-cluster
   apiGroup: rbac.authorization.k8s.io
 
 ---
