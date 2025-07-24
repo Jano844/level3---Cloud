@@ -1,4 +1,4 @@
-package package myDatabase
+package myDatabase
 
 
 import (
