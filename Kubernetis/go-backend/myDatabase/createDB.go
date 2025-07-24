@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// Template für die PostgreSQL-Cluster-YAML
+// Template für die PostgreSQL-Cluster-YAML mit NodePort Service
 const postgresClusterTemplate = `
 apiVersion: postgres-operator.crunchydata.com/v1beta1
 kind: PostgresCluster
@@ -49,6 +49,29 @@ spec:
             resources:
               requests:
                 storage: 1Gi
+  service:
+    type: NodePort
+    nodePort: {{ .NodePort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-cluster-{{ .Username }}-external
+  namespace: postgres-operator
+  labels:
+    postgres-operator.crunchydata.com/cluster: postgres-cluster-{{ .Username }}
+    app: postgres-external
+spec:
+  type: NodePort
+  selector:
+    postgres-operator.crunchydata.com/cluster: postgres-cluster-{{ .Username }}
+    postgres-operator.crunchydata.com/role: master
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+    nodePort: {{ .NodePort }}
+    protocol: TCP
 `
 
 // Struktur für die JSON-Daten
@@ -61,6 +84,7 @@ type DatabaseRequest struct {
 type ClusterTemplateData struct {
 	Username  string
 	Databases []string
+	NodePort  int32
 }
 
 func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset) {
@@ -97,6 +121,9 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 
 	var templateData ClusterTemplateData
 	templateData.Username = req.Username
+
+	// Calculate NodePort (same for new and existing clusters)
+	templateData.NodePort = int32(30000 + (len(clusterName) % 2767))
 
 	if existingResult.Error() == nil {
 		// Cluster exists - get current databases and add new one
@@ -239,19 +266,24 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 		return
 	}
 
-	// Return success response as JSON
+	// Determine action for response
 	action := "created"
 	if existingResult.Error() == nil {
 		action = "updated"
 	}
 
+	// Return success response as JSON
 	response := map[string]interface{}{
-		"message":   fmt.Sprintf("Successfully %s database cluster", action),
-		"dbname":    req.DbName,
-		"username":  req.Username,
-		"cluster":   clusterName,
-		"databases": templateData.Databases,
-		"action":    action,
+		"message":          fmt.Sprintf("Successfully %s database cluster", action),
+		"dbname":           req.DbName,
+		"username":         req.Username,
+		"cluster":          clusterName,
+		"databases":        templateData.Databases,
+		"action":           action,
+		"external_port":    templateData.NodePort,
+		"external_service": fmt.Sprintf("%s-external", clusterName),
+		"connection_info":  "External access enabled via NodePort",
 	}
+
 	json.NewEncoder(w).Encode(response)
 }

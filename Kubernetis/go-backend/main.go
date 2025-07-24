@@ -50,7 +50,7 @@ func main() {
 	}
 
 	http.HandleFunc("/", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "jano844/level3-test:v1.1.2\n")
+		fmt.Fprintf(w, "jano844/level3-test:v1.1.4\n")
 	}))
 
 	http.HandleFunc("/pods", enableCORS(func(w http.ResponseWriter, r *http.Request) {
@@ -68,6 +68,14 @@ func main() {
 	http.HandleFunc("/deleteDB", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodDelete {
 			myDatabase.DeleteDatabase(w, r, clientset)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	http.HandleFunc("/getDBAccess", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			myDatabase.GetDatabaseAccess(w, r, clientset)
 		} else {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
