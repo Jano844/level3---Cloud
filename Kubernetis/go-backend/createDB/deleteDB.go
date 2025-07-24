@@ -1,4 +1,5 @@
-package createDB
+package package myDatabase
+
 
 import (
 	"bytes"

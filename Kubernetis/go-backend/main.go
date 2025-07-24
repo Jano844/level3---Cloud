@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 
-	"myapp/createDB"
+	"myapp/myDatabase"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -59,7 +59,7 @@ func main() {
 
 	http.HandleFunc("/createDB", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			createDB.CreateNewDatabase(w, r, clientset)
+			myDatabase.CreateNewDatabase(w, r, clientset)
 		} else {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -67,7 +67,7 @@ func main() {
 
 	http.HandleFunc("/deleteDB", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodDelete {
-			createDB.DeleteDatabase(w, r, clientset)
+			myDatabase.DeleteDatabase(w, r, clientset)
 		} else {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}

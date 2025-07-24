@@ -1,4 +1,4 @@
-package createDB
+package myDatabase
 
 import (
 	"bytes"
@@ -54,7 +54,6 @@ spec:
 // Struktur für die JSON-Daten
 type DatabaseRequest struct {
 	Username string `json:"username"`
-	Password string `json:"password"`
 	DbName   string `json:"dbname"`
 }
 
