@@ -34,6 +34,20 @@ type DatabaseAccessResponse struct {
 	ExternalConnectionString string `json:"external_connection_string"`
 }
 
+// UserDatabasesRequest structure for API requests
+type UserDatabasesRequest struct {
+	Username string `json:"username"`
+}
+
+// UserDatabasesResponse structure for API responses
+type UserDatabasesResponse struct {
+	Status      string   `json:"status"`
+	Message     string   `json:"message"`
+	Username    string   `json:"username"`
+	ClusterName string   `json:"cluster_name"`
+	Databases   []string `json:"databases"`
+}
+
 // GetDatabaseAccess returns connection information for a database
 func GetDatabaseAccess(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset) {
 	w.Header().Set("Content-Type", "application/json")
@@ -226,6 +240,90 @@ func GetDatabaseAccess(w http.ResponseWriter, r *http.Request, clientset *kubern
 		PSQLCommand:              psqlCommand,
 		ConnectionString:         internalConnectionString,
 		ExternalConnectionString: externalConnectionString,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// GetUserDatabases returns all databases for a specific user
+func GetUserDatabases(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Parse request
+	var req UserDatabasesRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Failed to parse JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Validate input
+	if req.Username == "" {
+		http.Error(w, "Username is required", http.StatusBadRequest)
+		return
+	}
+
+	clusterName := fmt.Sprintf("postgres-cluster-%s", req.Username)
+	namespace := "postgres-operator"
+
+	// Check if cluster exists
+	restClient := clientset.RESTClient()
+	existingResult := restClient.
+		Get().
+		AbsPath("/apis/postgres-operator.crunchydata.com/v1beta1").
+		Namespace(namespace).
+		Resource("postgresclusters").
+		Name(clusterName).
+		Do(context.TODO())
+
+	if existingResult.Error() != nil {
+		response := UserDatabasesResponse{
+			Status:  "error",
+			Message: fmt.Sprintf("PostgreSQL cluster '%s' not found", clusterName),
+		}
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Get cluster data and extract databases
+	var existingCluster map[string]interface{}
+	rawCluster, err := existingResult.Raw()
+	if err != nil {
+		http.Error(w, "Failed to read cluster data", http.StatusInternalServerError)
+		return
+	}
+
+	err = json.Unmarshal(rawCluster, &existingCluster)
+	if err != nil {
+		http.Error(w, "Failed to parse cluster data", http.StatusInternalServerError)
+		return
+	}
+
+	// Extract all databases from cluster
+	var databases []string
+	if spec, ok := existingCluster["spec"].(map[string]interface{}); ok {
+		if users, ok := spec["users"].([]interface{}); ok && len(users) > 0 {
+			if user, ok := users[0].(map[string]interface{}); ok {
+				if userDatabases, ok := user["databases"].([]interface{}); ok {
+					for _, db := range userDatabases {
+						if dbName, ok := db.(string); ok {
+							databases = append(databases, dbName)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Return success response
+	response := UserDatabasesResponse{
+		Status:      "success",
+		Message:     fmt.Sprintf("Found %d databases for user '%s'", len(databases), req.Username),
+		Username:    req.Username,
+		ClusterName: clusterName,
+		Databases:   databases,
 	}
 
 	w.WriteHeader(http.StatusOK)

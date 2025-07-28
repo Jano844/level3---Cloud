@@ -8,7 +8,7 @@ set -e  # Exit on any error
 # Configuration
 IMAGE_NAME="go-backend"
 DOCKERHUB_REPO="jano844/level3-test"
-TAG="v1.1.7"
+TAG="v1.2.1"
 FULL_IMAGE_NAME="${DOCKERHUB_REPO}:${TAG}"
 
 echo "🚀 Starting build and push process..."
