@@ -151,6 +151,16 @@
               <span>System Info</span>
             </button>
 
+            <button class="action-card" @click="goToDatabase">
+              <div class="action-icon">
+                <svg width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm.5-5v1h1a.5.5 0 0 1 0 1h-1v1a.5.5 0 0 1-1 0v-1h-1a.5.5 0 0 1 0-1h1v-1a.5.5 0 0 1 1 0Z"/>
+                  <path d="M12 1c-1.846 0-3.5.389-4.5 1.029V3c0 .55.448 1 1 1h7c.552 0 1-.45 1-1v-.971C15.5 1.389 13.846 1 12 1ZM3.5 2.029C2.5 2.669.854 3 0 3v10c0 .55.448 1 1 1h6.5a4.5 4.5 0 1 1-4.5-11.971Z"/>
+                </svg>
+              </div>
+              <span>Database</span>
+            </button>
+
             <button class="action-card" @click="refreshData">
               <div class="action-icon">
                 <svg width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
@@ -301,6 +311,10 @@ export default {
       router.push('/about')
     }
 
+    const goToDatabase = () => {
+      router.push('/database')
+    }
+
     // Action methods
     const refreshData = () => {
       checkAuthStatus()
@@ -337,6 +351,7 @@ export default {
       currentTime,
       goToLogin,
       goToAbout,
+      goToDatabase,
       refreshData,
       logout
     }

@@ -32,6 +32,11 @@ const router = createRouter({
       name: 'auth-callback',
       component: () => import('../views/AuthCallback.vue'),
     },
+    {
+      path: '/database',
+      name: 'database',
+      component: () => import('../views/DatabaseView.vue'),
+    },
   ],
 })
 
