@@ -116,9 +116,14 @@ func GetDatabaseAccess(w http.ResponseWriter, r *http.Request, clientset *kubern
 	// Get internal service information
 	internalHost := fmt.Sprintf("%s-primary.%s.svc.cluster.local", clusterName, namespace)
 
-	// Get external service information
+	// Get external service information using proper REST client
 	externalServiceName := fmt.Sprintf("%s-ha", clusterName)
-	externalServiceResult := restClient.
+
+	var externalPort int32 = 0
+	var externalHost string = "Not configured"
+
+	// Get the service using REST client - proper endpoint
+	serviceResult := restClient.
 		Get().
 		AbsPath("/api/v1").
 		Namespace(namespace).
@@ -126,24 +131,59 @@ func GetDatabaseAccess(w http.ResponseWriter, r *http.Request, clientset *kubern
 		Name(externalServiceName).
 		Do(context.TODO())
 
-	var externalPort int32 = 0
-	var externalHost string = "Not configured"
+	fmt.Printf("DEBUG: Checking service '%s' in namespace '%s'\n", externalServiceName, namespace)
 
-	if externalServiceResult.Error() == nil {
+	if serviceResult.Error() != nil {
+		fmt.Printf("DEBUG: Error getting service: %v\n", serviceResult.Error())
+	} else {
 		// External service exists, get the NodePort
-		rawService, err := externalServiceResult.Raw()
-		if err == nil {
+		rawService, err := serviceResult.Raw()
+		if err != nil {
+			fmt.Printf("DEBUG: Error getting raw service: %v\n", err)
+		} else {
+			fmt.Printf("DEBUG: Raw service data: %s\n", string(rawService))
+
 			var service map[string]interface{}
-			if json.Unmarshal(rawService, &service) == nil {
+			if json.Unmarshal(rawService, &service) != nil {
+				fmt.Printf("DEBUG: Error unmarshaling service JSON\n")
+			} else {
 				if spec, ok := service["spec"].(map[string]interface{}); ok {
-					if ports, ok := spec["ports"].([]interface{}); ok && len(ports) > 0 {
-						if port, ok := ports[0].(map[string]interface{}); ok {
-							if nodePort, ok := port["nodePort"].(float64); ok {
-								externalPort = int32(nodePort)
-								externalHost = "YOUR_CLUSTER_IP" // User needs to replace this
+					fmt.Printf("DEBUG: Service spec found\n")
+
+					// Check if it's a NodePort service
+					if serviceType, ok := spec["type"].(string); ok {
+						fmt.Printf("DEBUG: Service type: %s\n", serviceType)
+
+						if serviceType == "NodePort" {
+							if ports, ok := spec["ports"].([]interface{}); ok {
+								fmt.Printf("DEBUG: Found %d ports\n", len(ports))
+
+								// Look for the PostgreSQL port (5432)
+								for i, portInterface := range ports {
+									if port, ok := portInterface.(map[string]interface{}); ok {
+										fmt.Printf("DEBUG: Port %d: %+v\n", i, port)
+
+										if portNum, ok := port["port"].(float64); ok && int32(portNum) == 5432 {
+											if nodePort, ok := port["nodePort"].(float64); ok {
+												externalPort = int32(nodePort)
+												externalHost = "YOUR_CLUSTER_IP" // User needs to replace this
+												fmt.Printf("DEBUG: Found NodePort: %d\n", externalPort)
+												break
+											} else {
+												fmt.Printf("DEBUG: NodePort not found or wrong type\n")
+											}
+										}
+									}
+								}
+							} else {
+								fmt.Printf("DEBUG: Ports not found or wrong type\n")
 							}
 						}
+					} else {
+						fmt.Printf("DEBUG: Service type not found or wrong type\n")
 					}
+				} else {
+					fmt.Printf("DEBUG: Service spec not found\n")
 				}
 			}
 		}

@@ -1,9 +1,4 @@
-# Deployment
-api      containers:
-      - name: go-backend
-        image: jano844/level3-test:v1.1.0
-        ports:
-        - containerPort: 8080on: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: go-backend-deployment
@@ -20,7 +15,7 @@ spec:
       serviceAccountName: my-service-account
       containers:
       - name: go-backend
-        image: jano844/level3-test:v1.0.9
+        image: jano844/level3-test:v1.1.6
         ports:
         - containerPort: 8080
         imagePullPolicy: IfNotPresent
@@ -94,6 +89,9 @@ rules:
   - apiGroups: ["postgres-operator.crunchydata.com"]
     resources: ["postgresclusters"]
     verbs: ["create", "get", "list", "watch", "delete", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["services", "secrets"]
+    verbs: ["get", "list", "create", "delete", "update", "patch"]
 
 ---
 
