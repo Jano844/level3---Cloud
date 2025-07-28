@@ -87,6 +87,117 @@ type ClusterTemplateData struct {
 	NodePort  int32
 }
 
+// findAvailableNodePort finds an available NodePort using smart collision detection
+func findAvailableNodePort(restClient rest.Interface, namespace string, username string, isExistingCluster bool) (int32, error) {
+	// If it's an existing cluster, try to get the current NodePort from the existing service
+	if isExistingCluster {
+		expectedServiceName := fmt.Sprintf("postgres-cluster-%s-ha", username)
+
+		serviceResult := restClient.
+			Get().
+			AbsPath("/api/v1").
+			Namespace(namespace).
+			Resource("services").
+			Name(expectedServiceName).
+			Do(context.TODO())
+
+		if serviceResult.Error() == nil {
+			rawService, err := serviceResult.Raw()
+			if err == nil {
+				var service map[string]interface{}
+				if json.Unmarshal(rawService, &service) == nil {
+					if spec, ok := service["spec"].(map[string]interface{}); ok {
+						if ports, ok := spec["ports"].([]interface{}); ok && len(ports) > 0 {
+							if port, ok := ports[0].(map[string]interface{}); ok {
+								if nodePort, ok := port["nodePort"].(float64); ok {
+									fmt.Printf("DEBUG: Reusing existing NodePort %d for user %s\n", int32(nodePort), username)
+									return int32(nodePort), nil
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Get all existing NodePort services to find available port
+	servicesResult := restClient.
+		Get().
+		AbsPath("/api/v1").
+		Namespace(namespace).
+		Resource("services").
+		Do(context.TODO())
+
+	if servicesResult.Error() != nil {
+		return 0, fmt.Errorf("failed to list services: %v", servicesResult.Error())
+	}
+
+	rawServices, err := servicesResult.Raw()
+	if err != nil {
+		return 0, fmt.Errorf("failed to read services: %v", err)
+	}
+
+	var servicesList map[string]interface{}
+	if err := json.Unmarshal(rawServices, &servicesList); err != nil {
+		return 0, fmt.Errorf("failed to parse services list: %v", err)
+	}
+
+	// Collect all used NodePorts
+	usedPorts := make(map[int32]bool)
+	if items, ok := servicesList["items"].([]interface{}); ok {
+		for _, item := range items {
+			if service, ok := item.(map[string]interface{}); ok {
+				if spec, ok := service["spec"].(map[string]interface{}); ok {
+					if serviceType, ok := spec["type"].(string); ok && serviceType == "NodePort" {
+						if ports, ok := spec["ports"].([]interface{}); ok {
+							for _, portInterface := range ports {
+								if port, ok := portInterface.(map[string]interface{}); ok {
+									if nodePort, ok := port["nodePort"].(float64); ok {
+										usedPorts[int32(nodePort)] = true
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	fmt.Printf("DEBUG: Found %d used NodePorts\n", len(usedPorts))
+
+	// Start with a simple hash-based port for better distribution, then search for free port
+	usernameHash := 0
+	for _, char := range username {
+		usernameHash = usernameHash*31 + int(char)
+	}
+	if usernameHash < 0 {
+		usernameHash = -usernameHash
+	}
+	startPort := int32(30000 + (usernameHash % 2768))
+
+	// Try to find available port starting from hash-based port
+	maxAttempts := 2768 // Maximum possible ports in range
+	currentPort := startPort
+
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		if !usedPorts[currentPort] {
+			fmt.Printf("DEBUG: Found available NodePort %d for user %s (attempt %d, started from %d)\n",
+				currentPort, username, attempt+1, startPort)
+			return currentPort, nil
+		}
+
+		// Try next port
+		currentPort++
+		if currentPort > 32767 {
+			currentPort = 30000 // Wrap around to beginning of NodePort range
+		}
+	}
+
+	return 0, fmt.Errorf("no available NodePort found after checking all %d possible ports. NodePort range exhausted", maxAttempts)
+}
+
 func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset) {
 	// Set response headers
 	w.Header().Set("Content-Type", "application/json")
@@ -122,8 +233,15 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 	var templateData ClusterTemplateData
 	templateData.Username = req.Username
 
-	// Calculate NodePort (same for new and existing clusters)
-	templateData.NodePort = int32(30000 + (len(clusterName) % 2767))
+	// Find available NodePort by checking existing services
+	availablePort, err := findAvailableNodePort(restClient, namespace, req.Username, existingResult.Error() == nil)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to find available NodePort: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	templateData.NodePort = availablePort
+	fmt.Printf("DEBUG: Assigned NodePort %d to user '%s'\n", availablePort, req.Username)
 
 	if existingResult.Error() == nil {
 		// Cluster exists - get current databases and add new one

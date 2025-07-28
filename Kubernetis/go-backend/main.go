@@ -50,7 +50,7 @@ func main() {
 	}
 
 	http.HandleFunc("/", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "jano844/level3-test:v1.2.1\n")
+		fmt.Fprintf(w, "jano844/level3-test:v1.2.2\n")
 	}))
 
 	http.HandleFunc("/pods", enableCORS(func(w http.ResponseWriter, r *http.Request) {
