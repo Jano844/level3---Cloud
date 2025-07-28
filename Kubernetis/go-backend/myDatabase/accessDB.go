@@ -2,6 +2,7 @@ package myDatabase
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -27,6 +28,8 @@ type DatabaseAccessResponse struct {
 	ExternalHost             string `json:"external_host"`
 	ExternalPort             int32  `json:"external_port"`
 	Password                 string `json:"password"`
+	ActualPassword           string `json:"actual_password"`
+	PSQLCommand              string `json:"psql_command"`
 	ConnectionString         string `json:"connection_string"`
 	ExternalConnectionString string `json:"external_connection_string"`
 }
@@ -131,59 +134,58 @@ func GetDatabaseAccess(w http.ResponseWriter, r *http.Request, clientset *kubern
 		Name(externalServiceName).
 		Do(context.TODO())
 
-	fmt.Printf("DEBUG: Checking service '%s' in namespace '%s'\n", externalServiceName, namespace)
-
-	if serviceResult.Error() != nil {
-		fmt.Printf("DEBUG: Error getting service: %v\n", serviceResult.Error())
-	} else {
+	if serviceResult.Error() == nil {
 		// External service exists, get the NodePort
 		rawService, err := serviceResult.Raw()
-		if err != nil {
-			fmt.Printf("DEBUG: Error getting raw service: %v\n", err)
-		} else {
-			fmt.Printf("DEBUG: Raw service data: %s\n", string(rawService))
-
+		if err == nil {
 			var service map[string]interface{}
-			if json.Unmarshal(rawService, &service) != nil {
-				fmt.Printf("DEBUG: Error unmarshaling service JSON\n")
-			} else {
+			if json.Unmarshal(rawService, &service) == nil {
 				if spec, ok := service["spec"].(map[string]interface{}); ok {
-					fmt.Printf("DEBUG: Service spec found\n")
-
 					// Check if it's a NodePort service
-					if serviceType, ok := spec["type"].(string); ok {
-						fmt.Printf("DEBUG: Service type: %s\n", serviceType)
-
-						if serviceType == "NodePort" {
-							if ports, ok := spec["ports"].([]interface{}); ok {
-								fmt.Printf("DEBUG: Found %d ports\n", len(ports))
-
-								// Look for the PostgreSQL port (5432)
-								for i, portInterface := range ports {
-									if port, ok := portInterface.(map[string]interface{}); ok {
-										fmt.Printf("DEBUG: Port %d: %+v\n", i, port)
-
-										if portNum, ok := port["port"].(float64); ok && int32(portNum) == 5432 {
-											if nodePort, ok := port["nodePort"].(float64); ok {
-												externalPort = int32(nodePort)
-												externalHost = "YOUR_CLUSTER_IP" // User needs to replace this
-												fmt.Printf("DEBUG: Found NodePort: %d\n", externalPort)
-												break
-											} else {
-												fmt.Printf("DEBUG: NodePort not found or wrong type\n")
-											}
+					if serviceType, ok := spec["type"].(string); ok && serviceType == "NodePort" {
+						if ports, ok := spec["ports"].([]interface{}); ok {
+							// Look for the PostgreSQL port (5432)
+							for _, portInterface := range ports {
+								if port, ok := portInterface.(map[string]interface{}); ok {
+									if portNum, ok := port["port"].(float64); ok && int32(portNum) == 5432 {
+										if nodePort, ok := port["nodePort"].(float64); ok {
+											externalPort = int32(nodePort)
+											externalHost = "YOUR_CLUSTER_IP" // User needs to replace this
+											break
 										}
 									}
 								}
-							} else {
-								fmt.Printf("DEBUG: Ports not found or wrong type\n")
 							}
 						}
-					} else {
-						fmt.Printf("DEBUG: Service type not found or wrong type\n")
 					}
-				} else {
-					fmt.Printf("DEBUG: Service spec not found\n")
+				}
+			}
+		}
+	}
+
+	// Get actual password from secret
+	secretName := fmt.Sprintf("%s-pguser-%s", clusterName, req.Username)
+	secretResult := restClient.
+		Get().
+		AbsPath("/api/v1").
+		Namespace(namespace).
+		Resource("secrets").
+		Name(secretName).
+		Do(context.TODO())
+
+	var actualPassword string = "Could not retrieve password"
+	if secretResult.Error() == nil {
+		rawSecret, err := secretResult.Raw()
+		if err == nil {
+			var secret map[string]interface{}
+			if json.Unmarshal(rawSecret, &secret) == nil {
+				if data, ok := secret["data"].(map[string]interface{}); ok {
+					if passwordB64, ok := data["password"].(string); ok {
+						// Decode base64 password
+						if passwordBytes, err := base64.StdEncoding.DecodeString(passwordB64); err == nil {
+							actualPassword = string(passwordBytes)
+						}
+					}
 				}
 			}
 		}
@@ -191,6 +193,10 @@ func GetDatabaseAccess(w http.ResponseWriter, r *http.Request, clientset *kubern
 
 	// Password placeholder (user needs kubectl to get actual password)
 	password := "*** Use: kubectl get secret " + clusterName + "-pguser-" + req.Username + " -n " + namespace + " -o jsonpath='{.data.password}' | base64 -d ***"
+
+	// Generate psql command
+	psqlCommand := fmt.Sprintf("PGPASSWORD='%s' psql -h <IP> -p %d -U %s -d %s",
+		actualPassword, externalPort, req.Username, req.DbName)
 
 	// Build connection strings
 	internalConnectionString := fmt.Sprintf("postgresql://%s:[PASSWORD]@%s:5432/%s?sslmode=require",
@@ -216,6 +222,8 @@ func GetDatabaseAccess(w http.ResponseWriter, r *http.Request, clientset *kubern
 		ExternalHost:             externalHost,
 		ExternalPort:             externalPort,
 		Password:                 password,
+		ActualPassword:           actualPassword,
+		PSQLCommand:              psqlCommand,
 		ConnectionString:         internalConnectionString,
 		ExternalConnectionString: externalConnectionString,
 	}
