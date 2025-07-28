@@ -133,16 +133,80 @@
         </div>
       </div>
 
+      <!-- User Databases Section -->
+      <div class="user-databases-section">
+        <div class="section-card">
+          <div class="card-header">
+            <div class="card-icon list">
+              <svg width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 3c-1.552 0-2.94.707-3.905 1.028.965.32 2.353 1.028 3.905 1.028s2.94-.707 3.905-1.028C11.94 3.707 10.552 3 8 3z"/>
+                <path d="M4 9a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1v4zM13 6a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1V6zM4 11a1 1 0 0 1-1-1v-1a1 1 0 0 1 1-1v3zM13 10a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1v-3z"/>
+                <path d="M5 2c0-1.105.895-2 2-2h2c1.105 0 2 .895 2 2v2c0 1.105-.895 2-2 2H7c-1.105 0-2-.895-2-2V2z"/>
+              </svg>
+            </div>
+            <h3>My Databases</h3>
+          </div>
+          <p>View and manage all your existing databases</p>
+          
+          <form @submit.prevent="getUserDatabases" class="db-form">
+            <div class="form-group">
+              <label for="list-username">Username</label>
+              <input 
+                id="list-username"
+                v-model="listForm.username" 
+                type="text" 
+                placeholder="Enter username"
+                required
+              />
+            </div>
+            <button type="submit" class="btn btn-secondary" :disabled="isLoading">
+              <span v-if="isLoading" class="spinner"></span>
+              {{ isLoading ? 'Loading...' : 'Get My Databases' }}
+            </button>
+          </form>
+
+          <!-- Database List -->
+          <div v-if="userDatabases" class="databases-list">
+            <div class="databases-header">
+              <h4>Found {{ (userDatabases.databases && userDatabases.databases.length) || 0 }} database(s)</h4>
+              <div class="status-info">
+                <span class="status-badge success">{{ userDatabases.status }}</span>
+                <span class="cluster-name">Cluster: {{ userDatabases.cluster_name }}</span>
+              </div>
+            </div>
+            
+            <div v-if="userDatabases.databases && userDatabases.databases.length > 0" class="database-buttons">
+              <button 
+                v-for="dbName in userDatabases.databases" 
+                :key="dbName"
+                @click="accessDatabase(userDatabases.username, dbName)"
+                class="btn btn-database"
+                :disabled="isLoading"
+              >
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="db-icon">
+                  <path d="M4.318 2.687C5.234 2.271 6.536 2 8 2s2.766.27 3.682.687C12.644 3.125 13 3.627 13 4c0 .374-.356.875-1.318 1.313C10.766 5.729 9.464 6 8 6s-2.766-.27-3.682-.687C3.356 4.875 3 4.373 3 4c0-.374.356-.875 1.318-1.313ZM13 5.698V7c0 .374-.356.875-1.318 1.313C10.766 8.729 9.464 9 8 9s-2.766-.27-3.682-.687C3.356 7.875 3 7.373 3 7V5.698c.271.202.58.378.904.525C4.978 6.711 6.427 7 8 7s3.022-.289 4.096-.777A4.92 4.92 0 0 0 13 5.698ZM14 4c0-1.313-.967-2.5-2.682-3.113C10.363.264 9.223 0 8 0s-2.363.264-3.318.887C2.967 1.5 2 2.687 2 4v9c0 1.313.967 2.5 2.682 3.113C5.637 16.736 6.777 17 8 17s2.363-.264 3.318-.887C13.033 15.5 14 14.313 14 13V4ZM3 9.698V11c0 .374.356.875 1.318 1.313C5.234 12.729 6.536 13 8 13s2.766-.27 3.682-.687C12.644 11.875 13 11.373 13 11V9.698c-.271.202-.58.378-.904.525C11.022 10.711 9.573 11 8 11s-3.022-.289-4.096-.777A4.92 4.92 0 0 1 3 9.698Z"/>
+                </svg>
+                {{ dbName }}
+              </button>
+            </div>
+            
+            <div v-else class="no-databases">
+              <p>No databases found for this user.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Results Section -->
       <div v-if="result" class="result-section">
         <div class="result-card" :class="result.type">
           <div class="result-header">
             <div class="result-icon">
               <svg v-if="result.type === 'success'" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.061L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+                <path d="M16 8A8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.061L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
               </svg>
               <svg v-else width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
+                <path d="M16 8A8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
               </svg>
             </div>
             <h3>{{ result.title }}</h3>
@@ -264,7 +328,7 @@
           <div class="error-header">
             <div class="error-icon">
               <svg width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
+                <path d="M16 8A8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
               </svg>
             </div>
             <h3>Error</h3>
@@ -303,11 +367,16 @@ const deleteForm = reactive({
   dbname: ''
 })
 
+const listForm = reactive({
+  username: ''
+})
+
 // State management
 const isLoading = ref(false)
 const result = ref(null)
 const error = ref(null)
 const showPassword = ref(false)
+const userDatabases = ref(null)
 
 // Clear functions
 const clearResult = () => {
@@ -420,6 +489,50 @@ const deleteDatabase = async () => {
     deleteForm.dbname = ''
   } catch (err) {
     error.value = `Failed to delete database: ${err.message}`
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Get user databases
+const getUserDatabases = async () => {
+  if (!listForm.username) {
+    error.value = 'Username is required'
+    return
+  }
+
+  isLoading.value = true
+  error.value = null
+  result.value = null
+  userDatabases.value = null
+
+  try {
+    const response = await ApiService.getUserDatabases(listForm.username)
+    userDatabases.value = response
+  } catch (err) {
+    error.value = `Failed to get user databases: ${err.message}`
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Access a specific database (calls getDBAccess endpoint)
+const accessDatabase = async (username, dbname) => {
+  isLoading.value = true
+  error.value = null
+  result.value = null
+
+  try {
+    const response = await ApiService.getDatabaseAccess(username, dbname)
+    
+    result.value = {
+      type: 'success',
+      title: 'Database Access Information',
+      message: `Retrieved access information for database "${dbname}"`,
+      data: response
+    }
+  } catch (err) {
+    error.value = `Failed to get database access info: ${err.message}`
   } finally {
     isLoading.value = false
   }
@@ -613,6 +726,16 @@ const deleteDatabase = async () => {
   box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
 }
 
+.btn-secondary {
+  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+}
+
 .spinner {
   width: 16px;
   height: 16px;
@@ -788,6 +911,138 @@ const deleteDatabase = async () => {
   background: #0056b3;
 }
 
+/* User Databases Section Styles */
+.user-databases-section {
+  margin-bottom: 3rem;
+}
+
+.section-card {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.section-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.card-icon.list {
+  background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+}
+
+.databases-list {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.databases-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.databases-header h4 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.125rem;
+}
+
+.status-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.status-badge.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.cluster-name {
+  color: #6c757d;
+  font-size: 0.9rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  background: #f8f9fa;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.database-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.btn-database {
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+  color: white;
+  padding: 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.btn-database:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(23, 162, 184, 0.4);
+  background: linear-gradient(135deg, #138496 0%, #117a8b 100%);
+}
+
+.btn-database:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.db-icon {
+  flex-shrink: 0;
+}
+
+.no-databases {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+}
+
+.no-databases p {
+  margin: 0;
+  font-style: italic;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .database-management {
@@ -817,6 +1072,21 @@ const deleteDatabase = async () => {
 
   .password-field, .connection-string {
     flex-direction: column;
+  }
+
+  .databases-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .database-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .status-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
   }
 }
 </style>

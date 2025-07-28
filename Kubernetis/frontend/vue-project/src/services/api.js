@@ -85,6 +85,16 @@ class ApiService {
       })
     })
   }
+
+  // Get user databases
+  async getUserDatabases(username) {
+    return await this.request('/getUserDatabases', {
+      method: 'POST',
+      body: JSON.stringify({
+        username
+      })
+    })
+  }
 }
 
 export default new ApiService()
