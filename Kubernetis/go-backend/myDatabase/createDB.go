@@ -76,8 +76,7 @@ spec:
 
 // Struktur für die JSON-Daten
 type DatabaseRequest struct {
-	Username string `json:"username"`
-	DbName   string `json:"dbname"`
+	DbName string `json:"dbname"`
 }
 
 // Template data structure
@@ -202,6 +201,13 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 	// Set response headers
 	w.Header().Set("Content-Type", "application/json")
 
+	// Extract username from JWT token context
+	username, ok := r.Context().Value("user_id").(string)
+	if !ok || username == "" {
+		http.Error(w, "Unable to get user information from token", http.StatusUnauthorized)
+		return
+	}
+
 	// Check Json
 	var req DatabaseRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -211,13 +217,13 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 	}
 
 	// Validate input
-	if req.Username == "" || req.DbName == "" {
-		http.Error(w, "Username and dbname are required", http.StatusBadRequest)
+	if req.DbName == "" {
+		http.Error(w, "dbname is required", http.StatusBadRequest)
 		return
 	}
 
 	// Check if PostgreSQL cluster already exists
-	clusterName := fmt.Sprintf("postgres-cluster-%s", req.Username)
+	clusterName := fmt.Sprintf("postgres-cluster-%s", username)
 	namespace := "postgres-operator"
 	restClient := clientset.RESTClient()
 
@@ -231,17 +237,17 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 		Do(context.TODO())
 
 	var templateData ClusterTemplateData
-	templateData.Username = req.Username
+	templateData.Username = username
 
 	// Find available NodePort by checking existing services
-	availablePort, err := findAvailableNodePort(restClient, namespace, req.Username, existingResult.Error() == nil)
+	availablePort, err := findAvailableNodePort(restClient, namespace, username, existingResult.Error() == nil)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to find available NodePort: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	templateData.NodePort = availablePort
-	fmt.Printf("DEBUG: Assigned NodePort %d to user '%s'\n", availablePort, req.Username)
+	fmt.Printf("DEBUG: Assigned NodePort %d to user '%s'\n", availablePort, username)
 
 	if existingResult.Error() == nil {
 		// Cluster exists - get current databases and add new one
@@ -272,7 +278,7 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 									response := map[string]interface{}{
 										"message":   "Database already exists in cluster",
 										"dbname":    req.DbName,
-										"username":  req.Username,
+										"username":  username,
 										"cluster":   clusterName,
 										"databases": currentDatabases,
 									}
@@ -394,7 +400,7 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 	response := map[string]interface{}{
 		"message":          fmt.Sprintf("Successfully %s database cluster", action),
 		"dbname":           req.DbName,
-		"username":         req.Username,
+		"username":         username,
 		"cluster":          clusterName,
 		"databases":        templateData.Databases,
 		"action":           action,

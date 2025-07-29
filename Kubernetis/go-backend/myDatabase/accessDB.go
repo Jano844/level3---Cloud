@@ -12,8 +12,7 @@ import (
 
 // DatabaseAccessRequest structure for API requests
 type DatabaseAccessRequest struct {
-	Username string `json:"username"`
-	DbName   string `json:"dbname"`
+	DbName string `json:"dbname"`
 }
 
 // DatabaseAccessResponse structure for API responses
@@ -36,7 +35,6 @@ type DatabaseAccessResponse struct {
 
 // UserDatabasesRequest structure for API requests
 type UserDatabasesRequest struct {
-	Username string `json:"username"`
 }
 
 // UserDatabasesResponse structure for API responses
@@ -52,6 +50,13 @@ type UserDatabasesResponse struct {
 func GetDatabaseAccess(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset) {
 	w.Header().Set("Content-Type", "application/json")
 
+	// Extract username from JWT token context
+	username, ok := r.Context().Value("user_id").(string)
+	if !ok || username == "" {
+		http.Error(w, "Unable to get user information from token", http.StatusUnauthorized)
+		return
+	}
+
 	// Parse request
 	var req DatabaseAccessRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -61,12 +66,12 @@ func GetDatabaseAccess(w http.ResponseWriter, r *http.Request, clientset *kubern
 	}
 
 	// Validate input
-	if req.Username == "" || req.DbName == "" {
-		http.Error(w, "Username and dbname are required", http.StatusBadRequest)
+	if req.DbName == "" {
+		http.Error(w, "dbname is required", http.StatusBadRequest)
 		return
 	}
 
-	clusterName := fmt.Sprintf("postgres-cluster-%s", req.Username)
+	clusterName := fmt.Sprintf("postgres-cluster-%s", username)
 	namespace := "postgres-operator"
 
 	// Check if cluster exists
@@ -178,7 +183,7 @@ func GetDatabaseAccess(w http.ResponseWriter, r *http.Request, clientset *kubern
 	}
 
 	// Get actual password from secret
-	secretName := fmt.Sprintf("%s-pguser-%s", clusterName, req.Username)
+	secretName := fmt.Sprintf("%s-pguser-%s", clusterName, username)
 	secretResult := restClient.
 		Get().
 		AbsPath("/api/v1").
@@ -206,20 +211,20 @@ func GetDatabaseAccess(w http.ResponseWriter, r *http.Request, clientset *kubern
 	}
 
 	// Password placeholder (user needs kubectl to get actual password)
-	password := "*** Use: kubectl get secret " + clusterName + "-pguser-" + req.Username + " -n " + namespace + " -o jsonpath='{.data.password}' | base64 -d ***"
+	password := "*** Use: kubectl get secret " + clusterName + "-pguser-" + username + " -n " + namespace + " -o jsonpath='{.data.password}' | base64 -d ***"
 
 	// Generate psql command
 	psqlCommand := fmt.Sprintf("PGPASSWORD='%s' psql -h <IP> -p %d -U %s -d %s",
-		actualPassword, externalPort, req.Username, req.DbName)
+		actualPassword, externalPort, username, req.DbName)
 
 	// Build connection strings
 	internalConnectionString := fmt.Sprintf("postgresql://%s:[PASSWORD]@%s:5432/%s?sslmode=require",
-		req.Username, internalHost, req.DbName)
+		username, internalHost, req.DbName)
 
 	var externalConnectionString string
 	if externalPort > 0 {
 		externalConnectionString = fmt.Sprintf("postgresql://%s:[PASSWORD]@%s:%d/%s?sslmode=require",
-			req.Username, externalHost, externalPort, req.DbName)
+			username, externalHost, externalPort, req.DbName)
 	} else {
 		externalConnectionString = "External access not configured"
 	}
@@ -229,7 +234,7 @@ func GetDatabaseAccess(w http.ResponseWriter, r *http.Request, clientset *kubern
 		Status:                   "success",
 		Message:                  "Database access information retrieved successfully",
 		DatabaseName:             req.DbName,
-		Username:                 req.Username,
+		Username:                 username,
 		ClusterName:              clusterName,
 		InternalHost:             internalHost,
 		InternalPort:             5432,
@@ -250,6 +255,13 @@ func GetDatabaseAccess(w http.ResponseWriter, r *http.Request, clientset *kubern
 func GetUserDatabases(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset) {
 	w.Header().Set("Content-Type", "application/json")
 
+	// Extract username from JWT token context
+	username, ok := r.Context().Value("user_id").(string)
+	if !ok || username == "" {
+		http.Error(w, "Unable to get user information from token", http.StatusUnauthorized)
+		return
+	}
+
 	// Parse request
 	var req UserDatabasesRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -258,13 +270,7 @@ func GetUserDatabases(w http.ResponseWriter, r *http.Request, clientset *kuberne
 		return
 	}
 
-	// Validate input
-	if req.Username == "" {
-		http.Error(w, "Username is required", http.StatusBadRequest)
-		return
-	}
-
-	clusterName := fmt.Sprintf("postgres-cluster-%s", req.Username)
+	clusterName := fmt.Sprintf("postgres-cluster-%s", username)
 	namespace := "postgres-operator"
 
 	// Check if cluster exists
@@ -320,8 +326,8 @@ func GetUserDatabases(w http.ResponseWriter, r *http.Request, clientset *kuberne
 	// Return success response
 	response := UserDatabasesResponse{
 		Status:      "success",
-		Message:     fmt.Sprintf("Found %d databases for user '%s'", len(databases), req.Username),
-		Username:    req.Username,
+		Message:     fmt.Sprintf("Found %d databases for user '%s'", len(databases), username),
+		Username:    username,
 		ClusterName: clusterName,
 		Databases:   databases,
 	}

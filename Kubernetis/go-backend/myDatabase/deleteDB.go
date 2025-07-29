@@ -1,6 +1,5 @@
 package myDatabase
 
-
 import (
 	"bytes"
 	"context"
@@ -15,13 +14,19 @@ import (
 
 // DeleteRequest structure for database deletion
 type DeleteRequest struct {
-	Username string `json:"username"`
-	DbName   string `json:"dbname"`
+	DbName string `json:"dbname"`
 }
 
 func DeleteDatabase(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset) {
 	// Set response headers
 	w.Header().Set("Content-Type", "application/json")
+
+	// Extract username from JWT token context
+	username, ok := r.Context().Value("user_id").(string)
+	if !ok || username == "" {
+		http.Error(w, "Unable to get user information from token", http.StatusUnauthorized)
+		return
+	}
 
 	// Parse JSON request
 	var req DeleteRequest
@@ -32,13 +37,13 @@ func DeleteDatabase(w http.ResponseWriter, r *http.Request, clientset *kubernete
 	}
 
 	// Validate input
-	if req.Username == "" || req.DbName == "" {
-		http.Error(w, "Username and dbname are required", http.StatusBadRequest)
+	if req.DbName == "" {
+		http.Error(w, "dbname is required", http.StatusBadRequest)
 		return
 	}
 
 	// Check if PostgreSQL cluster exists
-	clusterName := fmt.Sprintf("postgres-cluster-%s", req.Username)
+	clusterName := fmt.Sprintf("postgres-cluster-%s", username)
 	namespace := "postgres-operator"
 	restClient := clientset.RESTClient()
 
@@ -55,7 +60,7 @@ func DeleteDatabase(w http.ResponseWriter, r *http.Request, clientset *kubernete
 		response := map[string]interface{}{
 			"error":    "Cluster not found",
 			"cluster":  clusterName,
-			"username": req.Username,
+			"username": username,
 		}
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(response)
@@ -104,7 +109,7 @@ func DeleteDatabase(w http.ResponseWriter, r *http.Request, clientset *kubernete
 		response := map[string]interface{}{
 			"error":    "Database not found in cluster",
 			"dbname":   req.DbName,
-			"username": req.Username,
+			"username": username,
 			"cluster":  clusterName,
 		}
 		w.WriteHeader(http.StatusNotFound)
@@ -133,7 +138,7 @@ func DeleteDatabase(w http.ResponseWriter, r *http.Request, clientset *kubernete
 		response := map[string]interface{}{
 			"message":   "Successfully deleted database and cluster (last database)",
 			"dbname":    req.DbName,
-			"username":  req.Username,
+			"username":  username,
 			"cluster":   clusterName,
 			"action":    "deleted_cluster",
 			"databases": []string{},
@@ -147,7 +152,7 @@ func DeleteDatabase(w http.ResponseWriter, r *http.Request, clientset *kubernete
 
 	// Create template data with remaining databases
 	templateData := ClusterTemplateData{
-		Username:  req.Username,
+		Username:  username,
 		Databases: currentDatabases,
 	}
 
@@ -206,7 +211,7 @@ func DeleteDatabase(w http.ResponseWriter, r *http.Request, clientset *kubernete
 	response := map[string]interface{}{
 		"message":   "Successfully removed database from cluster",
 		"dbname":    req.DbName,
-		"username":  req.Username,
+		"username":  username,
 		"cluster":   clusterName,
 		"action":    "database_removed",
 		"databases": currentDatabases,
