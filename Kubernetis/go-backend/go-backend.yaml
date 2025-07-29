@@ -15,10 +15,13 @@ spec:
       serviceAccountName: my-service-account
       containers:
       - name: go-backend
-        image: jano844/level3-test:v1.1.6
+        image: jano844/level3-test:v1.2.4
         ports:
         - containerPort: 8080
         imagePullPolicy: IfNotPresent
+        env:
+        - name: ZITADEL_ISSUER
+          value: "https://openstack-demo-fgevuc.us1.zitadel.cloud"
         resources:
           requests:
             cpu: "100m"
