@@ -14,9 +14,15 @@ class ApiService {
   // Helper method for making HTTP requests
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`
+    
+    // Get JWT access token from localStorage for authentication
+    const accessToken = localStorage.getItem('access_token')
+    
     const config = {
       headers: {
         'Content-Type': 'application/json',
+        // Include JWT token in Authorization header if available
+        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
         ...options.headers,
       },
       ...options,
@@ -27,6 +33,24 @@ class ApiService {
       
       if (!response.ok) {
         const errorText = await response.text()
+        
+        // Handle authentication errors - redirect to login
+        if (response.status === 401) {
+          // Clear invalid tokens
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
+          localStorage.removeItem('id_token')
+          sessionStorage.removeItem('oauth_state')
+          sessionStorage.removeItem('code_verifier')
+          
+          // // Redirect to login page
+          // if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          //   window.location.href = '/login'
+          // }
+          
+          throw new Error('Authentication required. Please log in again.')
+        }
+        
         throw new Error(`HTTP ${response.status}: ${errorText}`)
       }
 
@@ -94,6 +118,74 @@ class ApiService {
         username
       })
     })
+  }
+
+  // Check if user is authenticated
+  isAuthenticated() {
+    const accessToken = localStorage.getItem('access_token')
+    const idToken = localStorage.getItem('id_token')
+    
+    if (!accessToken || !idToken) {
+      return false
+    }
+    
+    try {
+      // Check if ID token is expired
+      const payload = this.parseJWT(idToken)
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        return false
+      }
+      return true
+    } catch (error) {
+      return false
+    }
+  }
+
+  // Get current user information from stored tokens
+  getCurrentUser() {
+    const idToken = localStorage.getItem('id_token')
+    if (!idToken) {
+      return null
+    }
+    
+    try {
+      const payload = this.parseJWT(idToken)
+      return {
+        username: payload.preferred_username || payload.sub,
+        email: payload.email,
+        name: payload.name || payload.given_name,
+        sub: payload.sub,
+        exp: payload.exp
+      }
+    } catch (error) {
+      return null
+    }
+  }
+
+  // Helper method to parse JWT tokens
+  parseJWT(token) {
+    try {
+      const base64Url = token.split('.')[1]
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      )
+      return JSON.parse(jsonPayload)
+    } catch (error) {
+      throw new Error('Invalid JWT token')
+    }
+  }
+
+  // Clear authentication data
+  clearAuth() {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('id_token')
+    sessionStorage.removeItem('oauth_state')
+    sessionStorage.removeItem('code_verifier')
   }
 }
 
