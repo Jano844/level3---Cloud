@@ -41,5 +41,10 @@ openstack flavor create costum.v1 \
     Private and public Key from ~/.ssh/"your Key"
     the ones you used in terraform.tfvars
 
+```bash
+    chmod 400  ~/.ssh/id_rsa
+    chmod 400  ~/.ssh/id_rsa.pub
+```
+
 -- Done
 
