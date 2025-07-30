@@ -78,45 +78,40 @@ class ApiService {
   }
 
   // Create a new database
-  async createDatabase(username, dbname) {
+  async createDatabase(dbname) {
     return await this.request('/createDB', {
       method: 'POST',
       body: JSON.stringify({
-        username,
         dbname
       })
     })
   }
 
   // Delete a database
-  async deleteDatabase(username, dbname) {
+  async deleteDatabase(dbname) {
     return await this.request('/deleteDB', {
       method: 'DELETE',
       body: JSON.stringify({
-        username,
         dbname
       })
     })
   }
 
   // Get database access information
-  async getDatabaseAccess(username, dbname) {
+  async getDatabaseAccess(dbname) {
     return await this.request('/getDBAccess', {
       method: 'POST',
       body: JSON.stringify({
-        username,
         dbname
       })
     })
   }
 
   // Get user databases
-  async getUserDatabases(username) {
+  async getUserDatabases() {
     return await this.request('/getUserDatabases', {
       method: 'POST',
-      body: JSON.stringify({
-        username
-      })
+      body: JSON.stringify({})
     })
   }
 

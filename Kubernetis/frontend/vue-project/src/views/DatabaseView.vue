@@ -26,16 +26,6 @@
             <p>Create a new PostgreSQL database cluster with external access</p>
             <form @submit.prevent="createDatabase" class="db-form">
               <div class="form-group">
-                <label for="create-username">Username</label>
-                <input 
-                  id="create-username"
-                  v-model="createForm.username" 
-                  type="text" 
-                  placeholder="Enter username"
-                  required
-                />
-              </div>
-              <div class="form-group">
                 <label for="create-dbname">Database Name</label>
                 <input 
                   id="create-dbname"
@@ -64,16 +54,6 @@
             </div>
             <p>Retrieve connection information and credentials for an existing database</p>
             <form @submit.prevent="getAccessInfo" class="db-form">
-              <div class="form-group">
-                <label for="access-username">Username</label>
-                <input 
-                  id="access-username"
-                  v-model="accessForm.username" 
-                  type="text" 
-                  placeholder="Enter username"
-                  required
-                />
-              </div>
               <div class="form-group">
                 <label for="access-dbname">Database Name</label>
                 <input 
@@ -104,16 +84,6 @@
             </div>
             <p>Permanently delete a PostgreSQL database cluster</p>
             <form @submit.prevent="deleteDatabase" class="db-form">
-              <div class="form-group">
-                <label for="delete-username">Username</label>
-                <input 
-                  id="delete-username"
-                  v-model="deleteForm.username" 
-                  type="text" 
-                  placeholder="Enter username"
-                  required
-                />
-              </div>
               <div class="form-group">
                 <label for="delete-dbname">Database Name</label>
                 <input 
@@ -149,16 +119,6 @@
           <p>View and manage all your existing databases</p>
           
           <form @submit.prevent="getUserDatabases" class="db-form">
-            <div class="form-group">
-              <label for="list-username">Username</label>
-              <input 
-                id="list-username"
-                v-model="listForm.username" 
-                type="text" 
-                placeholder="Enter username"
-                required
-              />
-            </div>
             <button type="submit" class="btn btn-secondary" :disabled="isLoading">
               <span v-if="isLoading" class="spinner"></span>
               {{ isLoading ? 'Loading...' : 'Get My Databases' }}
@@ -179,7 +139,7 @@
               <button 
                 v-for="dbName in userDatabases.databases" 
                 :key="dbName"
-                @click="accessDatabase(userDatabases.username, dbName)"
+                @click="accessDatabase(dbName)"
                 class="btn btn-database"
                 :disabled="isLoading"
               >
@@ -353,22 +313,15 @@ import ApiService from '../services/api.js'
 
 // Reactive form data
 const createForm = reactive({
-  username: '',
   dbname: ''
 })
 
 const accessForm = reactive({
-  username: '',
   dbname: ''
 })
 
 const deleteForm = reactive({
-  username: '',
   dbname: ''
-})
-
-const listForm = reactive({
-  username: ''
 })
 
 // State management
@@ -400,8 +353,8 @@ const copyToClipboard = async (text) => {
 
 // API action functions
 const createDatabase = async () => {
-  if (!createForm.username || !createForm.dbname) {
-    error.value = 'Username and database name are required'
+  if (!createForm.dbname) {
+    error.value = 'Database name is required'
     return
   }
 
@@ -410,17 +363,16 @@ const createDatabase = async () => {
   result.value = null
 
   try {
-    const response = await ApiService.createDatabase(createForm.username, createForm.dbname)
+    const response = await ApiService.createDatabase(createForm.dbname)
     
     result.value = {
       type: 'success',
       title: 'Database Created',
-      message: `Successfully created database "${createForm.dbname}" for user "${createForm.username}"`,
+      message: `Successfully created database "${createForm.dbname}"`,
       data: response
     }
 
     // Clear form
-    createForm.username = ''
     createForm.dbname = ''
   } catch (err) {
     error.value = `Failed to create database: ${err.message}`
@@ -430,8 +382,8 @@ const createDatabase = async () => {
 }
 
 const getAccessInfo = async () => {
-  if (!accessForm.username || !accessForm.dbname) {
-    error.value = 'Username and database name are required'
+  if (!accessForm.dbname) {
+    error.value = 'Database name is required'
     return
   }
 
@@ -440,7 +392,7 @@ const getAccessInfo = async () => {
   result.value = null
 
   try {
-    const response = await ApiService.getDatabaseAccess(accessForm.username, accessForm.dbname)
+    const response = await ApiService.getDatabaseAccess(accessForm.dbname)
     
     result.value = {
       type: 'success',
@@ -450,7 +402,6 @@ const getAccessInfo = async () => {
     }
 
     // Clear form
-    accessForm.username = ''
     accessForm.dbname = ''
   } catch (err) {
     error.value = `Failed to get database access info: ${err.message}`
@@ -460,13 +411,13 @@ const getAccessInfo = async () => {
 }
 
 const deleteDatabase = async () => {
-  if (!deleteForm.username || !deleteForm.dbname) {
-    error.value = 'Username and database name are required'
+  if (!deleteForm.dbname) {
+    error.value = 'Database name is required'
     return
   }
 
   // Confirmation dialog
-  if (!confirm(`Are you sure you want to delete database "${deleteForm.dbname}" for user "${deleteForm.username}"? This action cannot be undone.`)) {
+  if (!confirm(`Are you sure you want to delete database "${deleteForm.dbname}"? This action cannot be undone.`)) {
     return
   }
 
@@ -475,17 +426,16 @@ const deleteDatabase = async () => {
   result.value = null
 
   try {
-    const response = await ApiService.deleteDatabase(deleteForm.username, deleteForm.dbname)
+    const response = await ApiService.deleteDatabase(deleteForm.dbname)
     
     result.value = {
       type: 'success',
       title: 'Database Deleted',
-      message: `Successfully deleted database "${deleteForm.dbname}" for user "${deleteForm.username}"`,
+      message: `Successfully deleted database "${deleteForm.dbname}"`,
       data: response
     }
 
     // Clear form
-    deleteForm.username = ''
     deleteForm.dbname = ''
   } catch (err) {
     error.value = `Failed to delete database: ${err.message}`
@@ -496,18 +446,13 @@ const deleteDatabase = async () => {
 
 // Get user databases
 const getUserDatabases = async () => {
-  if (!listForm.username) {
-    error.value = 'Username is required'
-    return
-  }
-
   isLoading.value = true
   error.value = null
   result.value = null
   userDatabases.value = null
 
   try {
-    const response = await ApiService.getUserDatabases(listForm.username)
+    const response = await ApiService.getUserDatabases()
     userDatabases.value = response
   } catch (err) {
     error.value = `Failed to get user databases: ${err.message}`
@@ -517,13 +462,13 @@ const getUserDatabases = async () => {
 }
 
 // Access a specific database (calls getDBAccess endpoint)
-const accessDatabase = async (username, dbname) => {
+const accessDatabase = async (dbname) => {
   isLoading.value = true
   error.value = null
   result.value = null
 
   try {
-    const response = await ApiService.getDatabaseAccess(username, dbname)
+    const response = await ApiService.getDatabaseAccess(dbname)
     
     result.value = {
       type: 'success',
