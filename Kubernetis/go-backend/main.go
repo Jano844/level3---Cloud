@@ -65,7 +65,7 @@ func main() {
 
 	// Health check endpoint (no JWT required)
 	http.HandleFunc("/", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "jano844/level3-test:v1.2.11\n")
+		fmt.Fprintf(w, "jano844/level3-test:v1.3.0\n")
 	}))
 
 	// Protected endpoints (JWT required)
@@ -258,7 +258,9 @@ func fetchJWKSKeys() error {
 
 	// Convert JWK to RSA public keys
 	keysLoaded := 0
+	fmt.Printf("Processing JWKS keys from %s\n", zitadelConfig.JWKSURI)
 	for _, key := range jwks.Keys {
+		fmt.Printf("Found JWK: kid=%s, kty=%s, use=%s\n", key.Kid, key.Kty, key.Use)
 		if key.Kty == "RSA" && key.Use == "sig" {
 			pubKey, err := jwkToRSAPublicKey(key)
 			if err != nil {
@@ -267,10 +269,12 @@ func fetchJWKSKeys() error {
 			}
 			jwksKeys[key.Kid] = pubKey
 			keysLoaded++
+			fmt.Printf("Successfully loaded RSA key with kid=%s\n", key.Kid)
 		}
 	}
 
 	lastJWKSFetch = time.Now()
+	fmt.Printf("Loaded %d RSA signing keys total\n", keysLoaded)
 
 	if keysLoaded == 0 {
 		return fmt.Errorf("no RSA signing keys found in JWKS")
@@ -313,8 +317,9 @@ func jwkToRSAPublicKey(key JWK) (*rsa.PublicKey, error) {
 
 // Validate JWT token
 func validateJWTToken(tokenString string) (*Claims, error) {
-	// Refresh JWKS keys if needed (every hour)
-	if time.Since(lastJWKSFetch) > time.Hour {
+	// Refresh JWKS keys if needed (every 30 minutes instead of 1 hour)
+	if time.Since(lastJWKSFetch) > 30*time.Minute {
+		fmt.Printf("JWKS cache expired, refreshing keys...\n")
 		if err := fetchJWKSKeys(); err != nil {
 			fmt.Printf("Failed to refresh JWKS keys: %v\n", err)
 		}
@@ -336,7 +341,19 @@ func validateJWTToken(tokenString string) (*Claims, error) {
 		// Get public key
 		pubKey, exists := jwksKeys[kid]
 		if !exists {
-			return nil, fmt.Errorf("unknown key ID: %s", kid)
+			// Try to refresh JWKS keys if key ID is unknown
+			fmt.Printf("Unknown key ID %s, refreshing JWKS keys...\n", kid)
+			if err := fetchJWKSKeys(); err != nil {
+				fmt.Printf("Failed to refresh JWKS keys for unknown kid: %v\n", err)
+				return nil, fmt.Errorf("unknown key ID: %s", kid)
+			}
+
+			// Try again after refresh
+			pubKey, exists = jwksKeys[kid]
+			if !exists {
+				fmt.Printf("Key ID %s still not found after JWKS refresh\n", kid)
+				return nil, fmt.Errorf("unknown key ID: %s", kid)
+			}
 		}
 
 		return pubKey, nil
