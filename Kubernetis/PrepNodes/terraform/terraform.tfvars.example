@@ -1,0 +1,12 @@
+auth_url    = "https://openstack.example.com:5000/v3"
+tenant_name = "demo"
+user_name   = "demo"
+password    = "secret"
+region      = "RegionOne"
+
+k8s_node_count   = 3
+k8s_flavor       = "m1.medium"
+k8s_image        = "ubuntu-22.04"
+k8s_network_name = "private"
+k8s_keypair      = "default-key"
+k8s_public_key_path = "~/.ssh/id_rsa.pub"
