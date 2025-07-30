@@ -1,11 +1,11 @@
-auth_url    = "http://88.99.80.96/identity/v3"
+auth_url    = "http://188.245.165.245/identity/v3"
 tenant_name = "admin"
 user_name   = "admin"
-password    = "password"
+password    = "12aaAAtest"
 region      = "RegionOne"
 
 k8s_node_count   = 2
-k8s_flavor       = "custom.v1"
+k8s_flavor       = "costum.v1"
 k8s_image        = "Ubuntu 22.04 Jammy"
 k8s_network_name = "private"
 k8s_keypair      = "default-key"

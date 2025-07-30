@@ -1,18 +1,18 @@
 -- Get Cloud Image
 ```bash
-wget https://cloud-images.ubuntu.com/jammy/20250523/jammy-server-cloudimg-amd64.img
+wget https://cloud-images.ubuntu.com/jammy/20250619/jammy-server-cloudimg-amd64-disk-kvm.img
 
 openstack image create "Ubuntu 22.04 Jammy" \
-   --file jammy-server-cloudimg-amd64.img \
+   --file jammy-server-cloudimg-amd64-disk-kvm.img \
    --disk-format qcow2 \
    --container-format bare
 ```
 
 -- Create Costum Flavor
 ```bash
-openstack flavor create costum \
+openstack flavor create costum.v1 \
     --ram 16384 \
-    --disk 40 \
+    --disk 60 \
     --vcpus 8 \
     --public
 ```
