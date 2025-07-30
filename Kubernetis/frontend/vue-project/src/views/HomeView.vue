@@ -5,7 +5,7 @@
       <div class="header-content">
         <div class="welcome-section">
           <h1 class="dashboard-title">
-            {{ isLoggedIn ? `Welcome back, ${userName}!` : 'Welcome to Your Dashboard' }}
+            {{ isLoggedIn ? `Welcome back!` : 'Welcome to Your Dashboard' }}
           </h1>
           <p class="dashboard-subtitle">
             {{ isLoggedIn ? 'Here\'s what\'s happening with your system today.' : 'Please log in to access your personalized dashboard.' }}
@@ -18,15 +18,6 @@
             </svg>
             Sign In
           </button>
-          <div v-else class="user-menu">
-            <div class="user-avatar">
-              <img v-if="userProfile?.picture" :src="userProfile.picture" :alt="userName" />
-              <div v-else class="avatar-placeholder">
-                {{ userName.charAt(0).toUpperCase() }}
-              </div>
-            </div>
-            <span class="user-name">{{ userName }}</span>
-          </div>
         </div>
       </div>
     </header>
