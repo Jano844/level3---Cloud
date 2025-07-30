@@ -4,7 +4,8 @@
 // const API_BASE_URL = 'http://192.168.1.100:30800'  // Local network IP
 // const API_BASE_URL = 'http://your-cluster-ip:30800'  // Kubernetes cluster IP
 // const API_BASE_URL = 'http://your-domain.com:30800'  // Domain name
-const API_BASE_URL = 'http://88.99.80.96:30800'  // Change this to your server's IP:PORT
+const API_BASE_IP = '88.99.80.96'
+const API_BASE_URL = `http://${API_BASE_IP}:30800`  // Change this to your server's IP:PORT
 
 class ApiService {
   constructor() {

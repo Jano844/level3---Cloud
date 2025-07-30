@@ -311,6 +311,9 @@
 import { ref, reactive } from 'vue'
 import ApiService from '../services/api.js'
 
+// Get the API base IP for external host display
+const API_BASE_IP = '88.99.80.96'
+
 // Reactive form data
 const createForm = reactive({
   dbname: ''
@@ -365,6 +368,17 @@ const createDatabase = async () => {
   try {
     const response = await ApiService.createDatabase(createForm.dbname)
     
+    // Replace placeholders in any string fields that might contain IP placeholders
+    if (response && typeof response === 'object') {
+      Object.keys(response).forEach(key => {
+        if (typeof response[key] === 'string') {
+          response[key] = response[key]
+            .replace(/<IP>/g, API_BASE_IP)
+            .replace(/YOUR_CLUSTER_IP/g, API_BASE_IP)
+        }
+      })
+    }
+    
     result.value = {
       type: 'success',
       title: 'Database Created',
@@ -393,6 +407,35 @@ const getAccessInfo = async () => {
 
   try {
     const response = await ApiService.getDatabaseAccess(accessForm.dbname)
+    
+    // Replace external_host with our API_BASE_IP
+    if (response.external_host) {
+      response.external_host = API_BASE_IP
+    }
+    
+    // Replace IP in external connection string if it exists
+    if (response.external_connection_string) {
+      response.external_connection_string = response.external_connection_string.replace(
+        /host=[^;]+/,
+        `host=${API_BASE_IP}`
+      )
+    }
+    
+    // Replace placeholders in psql_command and any other fields
+    if (response.psql_command) {
+      response.psql_command = response.psql_command
+        .replace(/<IP>/g, API_BASE_IP)
+        .replace(/YOUR_CLUSTER_IP/g, API_BASE_IP)
+    }
+    
+    // Replace placeholders in any other string fields that might contain IP placeholders
+    Object.keys(response).forEach(key => {
+      if (typeof response[key] === 'string') {
+        response[key] = response[key]
+          .replace(/<IP>/g, API_BASE_IP)
+          .replace(/YOUR_CLUSTER_IP/g, API_BASE_IP)
+      }
+    })
     
     result.value = {
       type: 'success',
@@ -469,6 +512,35 @@ const accessDatabase = async (dbname) => {
 
   try {
     const response = await ApiService.getDatabaseAccess(dbname)
+    
+    // Replace external_host with our API_BASE_IP
+    if (response.external_host) {
+      response.external_host = API_BASE_IP
+    }
+    
+    // Replace IP in external connection string if it exists
+    if (response.external_connection_string) {
+      response.external_connection_string = response.external_connection_string.replace(
+        /host=[^;]+/,
+        `host=${API_BASE_IP}`
+      )
+    }
+    
+    // Replace placeholders in psql_command and any other fields
+    if (response.psql_command) {
+      response.psql_command = response.psql_command
+        .replace(/<IP>/g, API_BASE_IP)
+        .replace(/YOUR_CLUSTER_IP/g, API_BASE_IP)
+    }
+    
+    // Replace placeholders in any other string fields that might contain IP placeholders
+    Object.keys(response).forEach(key => {
+      if (typeof response[key] === 'string') {
+        response[key] = response[key]
+          .replace(/<IP>/g, API_BASE_IP)
+          .replace(/YOUR_CLUSTER_IP/g, API_BASE_IP)
+      }
+    })
     
     result.value = {
       type: 'success',
