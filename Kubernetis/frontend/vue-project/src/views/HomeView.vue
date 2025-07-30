@@ -76,29 +76,17 @@
         <!-- Statistics Cards -->
         <div class="stats-grid">
           <div class="stat-card">
-            <div class="stat-icon success">
+            <div class="stat-icon" :class="{ 'success': backendStatus === 'online', 'danger': backendStatus === 'offline', 'warning': backendStatus === 'checking' }">
               <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M16 8A8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.061L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+                <path v-if="backendStatus === 'online'" d="M16 8A8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.061L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+                <path v-else-if="backendStatus === 'offline'" d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293 5.354 4.646z"/>
+                <path v-else d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
               </svg>
             </div>
             <div class="stat-content">
-              <h3>System Status</h3>
-              <p class="stat-value">Online</p>
-              <span class="stat-label">All services running</span>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-icon info">
-              <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
-              </svg>
-            </div>
-            <div class="stat-content">
-              <h3>Session Time</h3>
-              <p class="stat-value">{{ sessionDuration }}</p>
-              <span class="stat-label">Active session</span>
+              <h3>Backend Status</h3>
+              <p class="stat-value">{{ backendStatusText }}</p>
+              <span class="stat-label">{{ backendStatusLabel }}</span>
             </div>
           </div>
 
@@ -202,6 +190,20 @@
             <div class="activity-item">
               <div class="activity-icon">
                 <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                  <path v-if="backendStatus === 'online'" d="M16 8A8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.061L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+                  <path v-else-if="backendStatus === 'offline'" d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293 5.354 4.646z"/>
+                  <path v-else d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                </svg>
+              </div>
+              <div class="activity-content">
+                <p><strong>Backend status:</strong> {{ backendStatusText }} ({{ API_BASE_IP }}:30800)</p>
+                <span class="activity-time">{{ lastBackendCheck }}</span>
+              </div>
+            </div>
+            
+            <div class="activity-item">
+              <div class="activity-icon">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                   <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
                 </svg>
               </div>
@@ -220,6 +222,7 @@
 <script>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import apiService from '@/services/api.js'
 
 export default {
   name: 'HomeView',
@@ -228,6 +231,8 @@ export default {
     const currentTime = ref('')
     const sessionStartTime = ref(null)
     const userProfile = ref(null)
+    const backendStatus = ref('checking') // 'online', 'offline', 'checking'
+    const lastBackendCheck = ref('')
     
     // Computed properties
     const isLoggedIn = computed(() => !!userProfile.value)
@@ -238,19 +243,47 @@ export default {
       return ''
     })
     
-    const sessionDuration = computed(() => {
-      if (!sessionStartTime.value) return '0m'
-      const now = new Date()
-      const diff = Math.floor((now - sessionStartTime.value) / 1000 / 60)
-      if (diff < 60) return `${diff}m`
-      const hours = Math.floor(diff / 60)
-      const minutes = diff % 60
-      return `${hours}h ${minutes}m`
-    })
-    
     const lastLoginTime = computed(() => {
       return sessionStartTime.value ? sessionStartTime.value.toLocaleTimeString() : '--:--'
     })
+
+    const backendStatusText = computed(() => {
+      switch (backendStatus.value) {
+        case 'online':
+          return 'Online'
+        case 'offline':
+          return 'Offline'
+        case 'checking':
+        default:
+          return 'Checking...'
+      }
+    })
+
+    const backendStatusLabel = computed(() => {
+      switch (backendStatus.value) {
+        case 'online':
+          return 'Backend responding'
+        case 'offline':
+          return 'Backend unreachable'
+        case 'checking':
+        default:
+          return 'Checking status...'
+      }
+    })
+
+    // Check backend status
+    const checkBackendStatus = async () => {
+      backendStatus.value = 'checking'
+      lastBackendCheck.value = new Date().toLocaleTimeString()
+      
+      try {
+        await apiService.healthCheck(5000) // 5 second timeout
+        backendStatus.value = 'online'
+      } catch (error) {
+        console.error('Backend health check failed:', error)
+        backendStatus.value = 'offline'
+      }
+    }
 
     // Check authentication status
     const checkAuthStatus = () => {
@@ -316,11 +349,11 @@ export default {
     }
 
     // Action methods
-    const refreshData = () => {
+    const refreshData = async () => {
       checkAuthStatus()
       updateTime()
-      // Add a subtle visual feedback
-      alert('Dashboard data refreshed!')
+      await checkBackendStatus()
+      console.log('Dashboard data refreshed at', new Date().toLocaleTimeString())
     }
 
     const logout = () => {
@@ -338,17 +371,24 @@ export default {
     onMounted(() => {
       checkAuthStatus()
       updateTime()
+      checkBackendStatus()
       // Update time every minute
       setInterval(updateTime, 60000)
+      // Check backend status every 30 seconds
+      setInterval(checkBackendStatus, 30000)
     })
 
     return {
       isLoggedIn,
       userName,
       userProfile,
-      sessionDuration,
+      backendStatus,
+      backendStatusText,
+      backendStatusLabel,
+      lastBackendCheck,
       lastLoginTime,
       currentTime,
+      API_BASE_IP: '88.99.80.96', // Make the IP available to template
       goToLogin,
       goToAbout,
       goToDatabase,
@@ -557,6 +597,10 @@ export default {
 
 .stat-icon.success {
   background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.stat-icon.danger {
+  background: linear-gradient(135deg, #dc3545 0%, #e74c3c 100%);
 }
 
 .stat-icon.info {

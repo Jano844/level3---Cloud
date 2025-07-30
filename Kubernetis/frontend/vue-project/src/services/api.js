@@ -68,9 +68,26 @@ class ApiService {
     }
   }
 
-  // Health check
-  async healthCheck() {
-    return await this.request('/')
+  // Health check with timeout
+  async healthCheck(timeout = 5000) {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeout)
+    
+    try {
+      const response = await this.request('/', { 
+        signal: controller.signal,
+        // Don't include auth headers for health check to avoid 401 errors
+        headers: {}
+      })
+      clearTimeout(timeoutId)
+      return response
+    } catch (error) {
+      clearTimeout(timeoutId)
+      if (error.name === 'AbortError') {
+        throw new Error('Health check timeout')
+      }
+      throw error
+    }
   }
 
   // Get all pods
