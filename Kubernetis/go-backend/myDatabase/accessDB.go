@@ -56,6 +56,7 @@ func GetDatabaseAccess(w http.ResponseWriter, r *http.Request, clientset *kubern
 		http.Error(w, "Unable to get user information from token", http.StatusUnauthorized)
 		return
 	}
+	username = "u" + username + "u"
 
 	// Parse request
 	var req DatabaseAccessRequest
@@ -261,6 +262,7 @@ func GetUserDatabases(w http.ResponseWriter, r *http.Request, clientset *kuberne
 		http.Error(w, "Unable to get user information from token", http.StatusUnauthorized)
 		return
 	}
+	username = "u" + username + "u"
 
 	// Parse request
 	var req UserDatabasesRequest

@@ -27,6 +27,7 @@ func DeleteDatabase(w http.ResponseWriter, r *http.Request, clientset *kubernete
 		http.Error(w, "Unable to get user information from token", http.StatusUnauthorized)
 		return
 	}
+	username = "u" + username + "u"
 
 	// Parse JSON request
 	var req DeleteRequest

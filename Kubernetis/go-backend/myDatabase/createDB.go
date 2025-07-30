@@ -207,6 +207,7 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 		http.Error(w, "Unable to get user information from token", http.StatusUnauthorized)
 		return
 	}
+	username = "u" + username + "u"
 
 	// Check Json
 	var req DatabaseRequest
