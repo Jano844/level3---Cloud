@@ -18,7 +18,7 @@ const postgresClusterTemplate = `
 apiVersion: postgres-operator.crunchydata.com/v1beta1
 kind: PostgresCluster
 metadata:
-  name: postgres-cluster-{{ .Username }}
+  name: pgc-{{ .Username }}
   namespace: postgres-operator
   annotations:
     postgres-operator.crunchydata.com/autoCreateUserSchema: "true"
@@ -31,7 +31,7 @@ spec:
         - {{ . }}
         {{- end }}
   instances:
-    - name: instance-{{ .Username }}
+    - name: inst-{{ .Username }}
       dataVolumeClaimSpec:
         accessModes:
         - "ReadWriteOnce"
@@ -56,15 +56,15 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgres-cluster-{{ .Username }}-external
+  name: pgc-{{ .Username }}-external
   namespace: postgres-operator
   labels:
-    postgres-operator.crunchydata.com/cluster: postgres-cluster-{{ .Username }}
+    postgres-operator.crunchydata.com/cluster: pgc-{{ .Username }}
     app: postgres-external
 spec:
   type: NodePort
   selector:
-    postgres-operator.crunchydata.com/cluster: postgres-cluster-{{ .Username }}
+    postgres-operator.crunchydata.com/cluster: pgc-{{ .Username }}
     postgres-operator.crunchydata.com/role: master
   ports:
   - name: postgres
@@ -90,7 +90,7 @@ type ClusterTemplateData struct {
 func findAvailableNodePort(restClient rest.Interface, namespace string, username string, isExistingCluster bool) (int32, error) {
 	// If it's an existing cluster, try to get the current NodePort from the existing service
 	if isExistingCluster {
-		expectedServiceName := fmt.Sprintf("postgres-cluster-%s-ha", username)
+		expectedServiceName := fmt.Sprintf("pgc-%s-ha", username)
 
 		serviceResult := restClient.
 			Get().
@@ -207,11 +207,15 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 		http.Error(w, "Unable to get user information from token", http.StatusUnauthorized)
 		return
 	}
-	username = "u" + username + "u"
+	username, err := ToAlphaBaseStr(username)
+	if err != nil {
+		http.Error(w, "Invalid user ID format", http.StatusBadRequest)
+		return
+	}
 
 	// Check Json
 	var req DatabaseRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, "Failed to parse JSON", http.StatusBadRequest)
 		return
@@ -224,7 +228,7 @@ func CreateNewDatabase(w http.ResponseWriter, r *http.Request, clientset *kubern
 	}
 
 	// Check if PostgreSQL cluster already exists
-	clusterName := fmt.Sprintf("postgres-cluster-%s", username)
+	clusterName := fmt.Sprintf("pgc-%s", username)
 	namespace := "postgres-operator"
 	restClient := clientset.RESTClient()
 

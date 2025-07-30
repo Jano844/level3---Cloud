@@ -65,7 +65,7 @@ func main() {
 
 	// Health check endpoint (no JWT required)
 	http.HandleFunc("/", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "jano844/level3-test:v1.2.10\n")
+		fmt.Fprintf(w, "jano844/level3-test:v1.2.11\n")
 	}))
 
 	// Protected endpoints (JWT required)

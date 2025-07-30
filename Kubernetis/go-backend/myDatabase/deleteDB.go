@@ -27,11 +27,15 @@ func DeleteDatabase(w http.ResponseWriter, r *http.Request, clientset *kubernete
 		http.Error(w, "Unable to get user information from token", http.StatusUnauthorized)
 		return
 	}
-	username = "u" + username + "u"
+	username, err := ToAlphaBaseStr(username)
+	if err != nil {
+		http.Error(w, "Invalid user ID format", http.StatusBadRequest)
+		return
+	}
 
 	// Parse JSON request
 	var req DeleteRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, "Failed to parse JSON", http.StatusBadRequest)
 		return
@@ -44,7 +48,7 @@ func DeleteDatabase(w http.ResponseWriter, r *http.Request, clientset *kubernete
 	}
 
 	// Check if PostgreSQL cluster exists
-	clusterName := fmt.Sprintf("postgres-cluster-%s", username)
+	clusterName := fmt.Sprintf("pgc-%s", username)
 	namespace := "postgres-operator"
 	restClient := clientset.RESTClient()
 
