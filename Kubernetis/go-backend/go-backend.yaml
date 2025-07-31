@@ -15,10 +15,10 @@ spec:
       serviceAccountName: my-service-account
       containers:
       - name: go-backend
-        image: jano844/level3-test:v1.2.4
+        image: jano844/level3-test:v1.3.1
         ports:
         - containerPort: 8080
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         env:
         - name: ZITADEL_ISSUER
           value: "https://openstack-demo-fgevuc.us1.zitadel.cloud"
@@ -111,4 +111,3 @@ roleRef:
   kind: Role
   name: postgres-cluster-role
   apiGroup: rbac.authorization.k8s.io
-
