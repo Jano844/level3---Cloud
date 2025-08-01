@@ -19,7 +19,7 @@ Get .data.password .data.user .data.host .data.dbname
 all with | base64 -d && echo ""
 Example:
 ```bash
-  get secret my-postgres-cluster-pguser-myuser -n postgres-operator -o jsonpath="{.data.password}" | base64 -d && echo ""
+  kubectl get secret my-postgres-cluster-pguser-myuser -n postgres-operator -o jsonpath="{.data.password}" | base64 -d && echo ""
 ```
 
 ```bash
