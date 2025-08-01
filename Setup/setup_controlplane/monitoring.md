@@ -34,23 +34,16 @@
     kubectl --namespace monitoring get secrets prometheus-stack-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo
 ```
 
--- Add Nodeport to get external access
+-- Update Grafana Password
+- Create file.yaml
+```yaml
+    grafana:
+    adminPassword: "password"
+    service:
+        type: NodePort
+        nodePort: 30001
+```
+
 ```bash
-    kubectl -n monitoring edit service prometheus-stack-grafana
+    helm upgrade --install prometheus-stack prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace -f filename.yaml
 ```
-
-- add the Type in the first line under spec:
-```yaml
-    spec:
-      type: NodePort
-```
-- delete the line
-```yaml
-    type: ClusterIP
-```
-
-- for consistent Nodeport add in ports:
-```yaml
-    nodePort: 30001
-```
-
